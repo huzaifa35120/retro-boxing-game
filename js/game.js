@@ -259,7 +259,8 @@ const game = {
       return;
     }
     if (Input.any(' ', 'Enter') && !this.quickOn) {
-      if (!f || !id) { this.quickMsg = 'MAKE A FIGHTER FIRST'; return; }
+      if (!f) { this.quickMsg = 'MAKE A FIGHTER FIRST'; return; }
+      if (!id) { this.quickMsg = 'STILL SAVING YOUR FIGHTER - TRY AGAIN'; return; }
       this.quickOn = true; this.quickT = 0; this.quickMsg = '';
     }
     if (!this.quickOn) return;
@@ -360,7 +361,14 @@ const game = {
   roomFighterId() {
     // the row id in the database, which is what the room needs
     const f = this.roomFighter();
-    return f && Net.fighterIds ? Net.fighterIds[this.roomSlot] : null;
+    if (!f) return null;
+    const id = Net.fighterIds ? Net.fighterIds[this.roomSlot] : null;
+    if (!id && Net.signedIn() && !this.idFetch) {
+      // we have the fighter but not his id - fetch it rather than pretend
+      this.idFetch = true;
+      Net.pullFighters().catch(() => {}).then(() => { this.idFetch = false; });
+    }
+    return id;
   },
 
   cycleRoomFighter(dir) {
@@ -387,7 +395,8 @@ const game = {
     if (!Input.any(' ', 'Enter')) return;
 
     const f = this.roomFighter(), id = this.roomFighterId();
-    if (!f || !id) { Wire.fail('MAKE A FIGHTER FIRST'); return; }
+    if (!f) { Wire.fail('MAKE A FIGHTER FIRST'); return; }
+    if (!id) { Wire.fail('STILL SAVING YOUR FIGHTER - TRY AGAIN'); return; }
     if (this.roomRow === 1) Wire.host(f, id);
     else if (this.roomRow === 2) {
       if (this.roomCode.length < 4) { Wire.fail('TYPE THE FOUR LETTER CODE'); return; }

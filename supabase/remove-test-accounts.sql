@@ -12,4 +12,6 @@ where email in ('rbtest-a@example.com',
                 'rbtest-b@example.com',
                 'ringtest1@retrobox.local',
                 'alfatest@retrobox.local',
-                'bravotest@retrobox.local');
+                'bravotest@retrobox.local',
+                'reprotest@retrobox.local',
+                'reprotwo@retrobox.local');

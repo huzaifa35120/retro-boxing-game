@@ -167,11 +167,21 @@ const Net = {
      first and put a fresh row in. */
   async pushFighter(slot, f) {
     await this.dropFighter(slot).catch(() => {});
-    return this.call('/rest/v1/fighters', {
+    // ask for the row back: its id is what rooms, quick fights and the
+    // tournament all need, and without it the game thinks you have no fighter
+    const rows = await this.call('/rest/v1/fighters', {
       method: 'POST',
-      headers: { Prefer: 'return=minimal' },
+      headers: { Prefer: 'return=representation' },
       body: [this.toRow(slot, f)],
     });
+    const row = this.one(rows);
+    if (row && row.id) this.setFighterId(slot, row.id);
+    return row;
+  },
+
+  setFighterId(slot, id) {
+    if (!this.fighterIds) this.fighterIds = new Array(FIGHTER_SLOTS).fill(null);
+    this.fighterIds[slot] = id;
   },
 
   async patchFighter(slot, fields) {
@@ -181,6 +191,7 @@ const Net = {
   },
 
   async dropFighter(slot) {
+    this.setFighterId(slot, null);
     return this.call('/rest/v1/fighters?owner=eq.' + this.userId() + '&slot=eq.' + slot, {
       method: 'DELETE', headers: { Prefer: 'return=minimal' },
     });
