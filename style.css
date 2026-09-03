@@ -1,0 +1,24 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: #0a0a10;
+  color: #f8f8f8;
+  font-family: "Courier New", monospace;
+  overflow: hidden;
+}
+
+#frame {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#screen {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #101828;
+  border: 2px solid #303850;
+  box-shadow: 0 0 0 4px #0a0a10, 0 0 32px rgba(80, 120, 200, 0.25);
+}
