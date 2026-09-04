@@ -377,10 +377,13 @@ function drawBoxer(ctx, b) {
   const parts = [];
   for (const hand of ['L', 'R']) {
     const g = b.gloves[hand];
+    const lat = hand === 'L' ? -5 : 5;
     const gx = screenX(g.x, g.z);
     const gy = screenY(g.z) - g.h - b.bob;
-    const sx = CX + b.sx(hand === 'L' ? -5 : 5);
-    const sz = b.sz(hand === 'L' ? -5 : 5);
+    // the shoulder has to take the same taper as the glove, or the arm
+    // stretches towards the middle of the ring
+    const sz = b.sz(lat);
+    const sx = screenX(b.sx(lat), sz);
     const shy = screenY(sz) - (33 - Math.round(b.duckAmt * 8)) - b.bob;
     parts.push({ z: g.z, gx, gy, sx: sx + b.leanX, sy: shy });
   }
