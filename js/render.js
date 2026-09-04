@@ -1022,7 +1022,7 @@ function drawChampBanner(ctx, x, y, w, champ) {
 
   if (!champ) {
     ctext(ctx, 'THE TITLE IS VACANT', CX, y + 4, '#5a4208');
-    ctext(ctx, 'RANKED 1 FIGHTS RANKED 2 FOR IT', CX, y + 13, '#7a5c10');
+    ctext(ctx, 'THE SUNDAY TOURNAMENT WINNER TAKES IT', CX, y + 13, '#7a5c10');
     return;
   }
   text(ctx, 'CHAMPION', x + 8, y + 4, '#5a4208');
