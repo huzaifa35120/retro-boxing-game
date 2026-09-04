@@ -498,13 +498,15 @@ const STAT_ROWS = [
 ];
 
 /* The between-rounds screen: what each boxer landed, then the three cards. */
-function drawRoundCard(ctx, round, ps, bs, card, totals) {
+function drawRoundCard(ctx, round, ps, bs, card, totals, names) {
   const x = 8, y = 40, w = VIEW_W - 16, h = 156;
   const cA = VIEW_W - 142, cB = VIEW_W - 74;
   drawBox(ctx, x, y, w, h);
   ctext(ctx, 'END OF ROUND ' + round, CX, y + 5, DARK);
-  text(ctx, 'YOU', cA, y + 16, DARK);
-  text(ctx, 'OPP', cB, y + 16, DARK);
+  // by name, so both men read the same card the same way
+  const nA = (names && names[0]) || 'RED', nB = (names && names[1]) || 'BLUE';
+  text(ctx, nA, cA + 18 - textW(nA), y + 16, DARK);
+  text(ctx, nB, cB + 18 - textW(nB), y + 16, DARK);
 
   STAT_ROWS.forEach((r, i) => {
     const ry = y + 27 + i * 11;
@@ -514,7 +516,7 @@ function drawRoundCard(ctx, round, ps, bs, card, totals) {
   });
 
   px(ctx, x + 8, y + 105, w - 16, 1, DARK);
-  card.forEach((sc, i) => {
+  (card || []).forEach((sc, i) => {
     const ry = y + 110 + i * 10;
     text(ctx, 'JUDGE ' + (i + 1), x + 10, ry, DARK);
     text(ctx, String(sc[0]).padStart(3), cA, ry, DARK);
@@ -1239,4 +1241,38 @@ function drawTourney(ctx, division, t, fighters, mine, msg) {
   ctext(ctx, msg || t.hint, CX, y + 154, msg ? '#c02828' : DARK);
   ctext(ctx, KEY.L + KEY.R + ' DIVISION   SPACE ' + (t.action || 'REFRESH') + '   B BACK',
         CX, y + 166, DARK);
+}
+
+
+/* Everything the fight came to: the three cards, the verdict, and what each
+   man actually did over the whole bout. */
+function drawFinal(ctx, jtot, verdict, winner, names, tally) {
+  const x = 10, y = 10, w = VIEW_W - 20, h = 240;
+  const cA = x + 250, cB = x + 330;
+  px(ctx, 0, 0, VIEW_W, VIEW_H, '#0a0e18');
+  drawBox(ctx, x, y, w, h);
+  ctext(ctx, 'FINAL DECISION', CX, y + 5, DARK);
+
+  jtot.forEach((sc, i) => {
+    const ry = y + 22 + i * 11;
+    text(ctx, 'JUDGE ' + (i + 1), x + 40, ry, DARK);
+    text(ctx, String(sc[0]).padStart(3) + '  -' + String(sc[1]).padStart(3), x + 150, ry, DARK);
+  });
+
+  px(ctx, x + 10, y + 70, w - 20, 1, DARK);
+  ctext(ctx, verdict, CX, y + 76, DARK);
+  ctext(ctx, winner, CX, y + 90, DARK);
+  px(ctx, x + 10, y + 106, w - 20, 1, DARK);
+
+  const nA = (names && names[0]) || 'RED', nB = (names && names[1]) || 'BLUE';
+  text(ctx, nA, cA + 18 - textW(nA), y + 114, DARK);
+  text(ctx, nB, cB + 18 - textW(nB), y + 114, DARK);
+  STAT_ROWS.forEach((r, i) => {
+    const ry = y + 128 + i * 13;
+    text(ctx, r[0], x + 14, ry, DARK);
+    text(ctx, String(r[1](tally.a)).padStart(3), cA, ry, DARK);
+    text(ctx, String(r[1](tally.b)).padStart(3), cB, ry, DARK);
+  });
+
+  ctext(ctx, 'SPACE TO CARRY ON', CX, y + 226, '#585868');
 }

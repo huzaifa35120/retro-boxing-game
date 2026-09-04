@@ -42,6 +42,7 @@ const game = {
   restT: 0, countT: 0, countN: 0, overT: 0,
   downed: null,
   cards: [],                      // one [[a,b],[a,b],[a,b]] per completed round
+  tally: null,                    // both men's figures for the whole fight
   jtot: [[0, 0], [0, 0], [0, 0]], // each judge's running total
   stoppage: null,
   verdict: '', winnerText: '',
@@ -491,6 +492,7 @@ const game = {
     this.restT = 0; this.countT = 0; this.overT = 0; this.downed = null;
     this.cards.length = 0;
     this.jtot = [[0, 0], [0, 0], [0, 0]];
+    this.tally = { a: Boxer.newStats(), b: Boxer.newStats() };
     this.stoppage = null; this.verdict = ''; this.winnerText = '';
     this.banner = 'ROUND 1'; this.bannerT = 80;
     Sfx.bell();
@@ -499,7 +501,11 @@ const game = {
   say(s) { this.banner = s; this.bannerT = 45; },
 
   /* ---------------------------------------------------------- scoring */
+  addStats(dst, src) { for (const k in src) dst[k] += src[k]; },
+
   scoreRound() {
+    this.addStats(this.tally.a, this.player.stats);
+    this.addStats(this.tally.b, this.bot.stats);
     // what a judge sees: damage, work rate, and above all knockdowns
     const val = s => s.dmg + s.landed * 1.5 + s.head * 0.5 + s.kd * 40;
     const d0 = val(this.player.stats) - val(this.bot.stats);
@@ -515,6 +521,12 @@ const game = {
       this.jtot[i][0] += a; this.jtot[i][1] += b;
     }
     this.cards.push(card);
+  },
+
+  /* Who the two columns are. Named, so both players read the same card. */
+  boutNames() {
+    return [Wire.active ? this.playerName : (this.playerName || 'YOU'),
+            Wire.active ? this.botName : 'OPPONENT'];
   },
 
   cardTotals() {
@@ -533,14 +545,25 @@ const game = {
     Profile.recordFight(this.fighterSlot, res, method, false);   // training only
   },
 
+  /* A stoppage ends the fight mid-round, so fold that round's work in too. */
+  finalTally() {
+    const t = { a: Object.assign({}, this.tally.a), b: Object.assign({}, this.tally.b) };
+    if (this.stoppage) {
+      this.addStats(t.a, this.player.stats);
+      this.addStats(t.b, this.bot.stats);
+    }
+    return t;
+  },
+
   finish() {
     this.phase = 'over';
     this.overT = 60;
     this.logResult();
     this.reportOnline();
+    const nm = this.boutNames();
     if (this.stoppage) {
       this.verdict = 'TKO - ROUND ' + this.stoppage.round;
-      this.winnerText = this.stoppage.byPlayer ? 'WINNER: YOU' : 'WINNER: OPPONENT';
+      this.winnerText = 'WINNER: ' + (this.stoppage.byPlayer ? nm[0] : nm[1]);
       return;
     }
     let pw = 0, bw = 0, dr = 0;
@@ -549,15 +572,15 @@ const game = {
     else if (pw === bw) this.verdict = 'DRAW';
     else if (dr === 1) this.verdict = 'MAJORITY DECISION';
     else this.verdict = 'SPLIT DECISION';
-    this.winnerText = pw > bw ? 'WINNER: YOU'
-                    : bw > pw ? 'WINNER: OPPONENT' : 'THE FIGHT IS A DRAW';
+    this.winnerText = pw > bw ? 'WINNER: ' + nm[0]
+                    : bw > pw ? 'WINNER: ' + nm[1] : 'THE FIGHT IS A DRAW';
   },
 
   endRound() {
     this.scoreRound();
     Sfx.bell();
     this.player.punch = null; this.bot.punch = null;
-    if (this.round >= ROUNDS) { this.finish(); return; }
+    // every round gets its card, the last one included; the verdict follows it
     this.phase = 'rest';
     this.restT = REST_FRAMES;
   },
@@ -593,7 +616,7 @@ const game = {
     this.countN = 1;
     this.shake = 6.5;
     this.freeze = 12;
-    this.banner = b.isPlayer ? 'YOU ARE DOWN' : 'OPPONENT IS DOWN';
+    this.banner = (b === this.player ? this.boutNames()[0] : this.boutNames()[1]) + ' IS DOWN';
     this.bannerT = 100;
     this.burst(b.x, b.z, 22, 10, '#f8f0c0');
     Sfx.ko();
@@ -783,7 +806,7 @@ const game = {
       if (this.restT <= 0 ||
           (!Wire.active && REST_FRAMES - this.restT > REST_SKIP_AFTER && this.confirmPressed())) {
         Input.flush();
-        this.nextRound();
+        if (this.round >= ROUNDS) this.finish(); else this.nextRound();
       }
       return;
     }
@@ -921,6 +944,12 @@ const game = {
     }
 
     // ---- ui (never shakes) ---------------------------------------------------
+    if (this.phase === 'over') {           // the verdict gets the whole window
+      drawFinal(ctx, this.jtot, this.verdict, this.winnerText, this.boutNames(),
+                this.finalTally());
+      return;
+    }
+
     // Both screens show the same ring and the same meters: boxer A on the
     // left, boxer B on the right, whichever of them you happen to be. The
     // only thing that differs between the two screens is which one is
@@ -951,12 +980,11 @@ const game = {
     else if (Wire.active && Wire.stalled > 0) drawStall(ctx, Wire.stalled);
 
     if (this.phase === 'count' && this.downed) {
-      drawCount(ctx, this.downed.isPlayer ? 'YOU' : 'OPPONENT', this.countN);
+      drawCount(ctx, this.downed === this.player ? this.boutNames()[0] : this.boutNames()[1],
+                 this.countN);
     } else if (this.phase === 'rest') {
       drawRoundCard(ctx, this.round, this.player.stats, this.bot.stats,
-                    this.cards[this.cards.length - 1], this.cardTotals());
-    } else if (this.phase === 'over') {
-      drawResult(ctx, this.jtot, this.verdict, this.winnerText, !!this.stoppage);
+                    this.cards[this.cards.length - 1], this.cardTotals(), this.boutNames());
     } else if (this.bannerT > 0 && this.banner) {
       const w = textW(this.banner) + 14;
       const bx = Math.round(CX - w / 2);
