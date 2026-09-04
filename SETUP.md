@@ -93,6 +93,17 @@ Run these, in order:
    them in the table forever, and clears out the ones already there.
 5. **`supabase/queue-clean.sql`** — drops players out of the quick-fight queue
    if they stop searching, so nobody is matched with a ghost.
+6. **`supabase/tournament-rounds.sql`** — puts the tournament on a timetable:
+   quarter finals 19:00, semi finals 19:30, final 20:00. Marking in opens ten
+   minutes before each round and shuts when it starts.
+
+To satisfy yourself the tournament works, run **`supabase/test-tournament.sql`**
+in the SQL editor. It builds eight fighters, opens a draw, winds the clock past
+each round and boxes the whole thing out through the real functions, checking
+walkovers, seeding, the belt and the refusals along the way. Everything happens
+inside a transaction that rolls back, so it leaves nothing behind. A run that
+ends in `ALL CHECKS PASSED`, `EDGE CHECKS PASSED` and `WALKOVER CHAIN PASSED`
+means the whole thing works.
 
 ### Running a tournament each week
 

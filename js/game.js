@@ -34,6 +34,7 @@ const game = {
   tour: null, tourDiv: DEFAULT_WEIGHT, tourNames: {}, tourMsg: '', tourAt: 0,
   fighterSlot: -1, playerName: 'YOU', botName: 'OPPONENT',
   askQuit: false, forfeit: null,        // 'a' or 'b' - which man walked out
+  autoBout: false,                      // a tournament bout is opening itself
   crash: '', crashes: 0,                // set if a frame ever threw
 
   /* the bout ------------------------------------------------------------- */
@@ -279,7 +280,7 @@ const game = {
       Input.startTyping('', 'name');
       this.screen = 'rooms';
     } else {
-      this.tourDiv = this.weightIdx; this.tourMsg = '';
+      this.tourDiv = this.weightIdx; this.tourMsg = ''; this.autoBout = false;
       this.wantTourney(true);
       this.screen = 'tourney';
     }
@@ -315,7 +316,19 @@ const game = {
     if (!force && this.tourAt && Date.now() - this.tourAt < 8000) return;
     this.tourAt = Date.now();
     Net.pullTournament(this.tourDiv)
-      .then(t => { this.tour = t; return this.tourFighters(t); })
+      .then(t => {
+        this.tour = t;
+        // there is no clock on the server, so whoever is watching nudges the
+        // draw past each round time and lets the walkovers fall out
+        if (t && t.status !== 'done' && Date.now() >= Date.parse(t.starts_at)) {
+          return Net.settleTournament(t.id)
+            .then(() => Net.pullTournament(this.tourDiv))
+            .then(t2 => { this.tour = t2; return t2; })
+            .catch(() => t);
+        }
+        return t;
+      })
+      .then(t => this.tourFighters(t))
       .catch(e => { this.tourMsg = e.message; this.tour = null; });
   },
 
@@ -331,10 +344,12 @@ const game = {
 
   stepTourney() {
     if (Wire.status === 'ready') { this.startOnlineFight(); return; }
+    this.wantTourney();                 // throttled inside; keeps the draw fresh
+    this.autoStart();
     const dir = (Input.any('d', 'ArrowRight') ? 1 : 0) - (Input.any('a', 'ArrowLeft') ? 1 : 0);
     if (dir) {
       this.tourDiv = (this.tourDiv + dir + WEIGHTS.length) % WEIGHTS.length;
-      this.tour = null; this.tourMsg = '';
+      this.tour = null; this.tourMsg = ''; this.autoBout = false;
       this.wantTourney(true);
     }
     if (Input.any('b', 'Escape', 'Backspace')) { this.screen = 'multiplayer'; return; }
@@ -348,38 +363,80 @@ const game = {
       return;
     }
     if (!id) { this.tourMsg = 'MAKE A FIGHTER FIRST'; return; }
-    const mine = this.myBout();
-    if (mine) {
-      Net.startBout(mine.id)
-        .then(room => { if (room) Wire.attach(room, this.roomFighter()); })
-        .catch(e => { this.tourMsg = e.message; });
-    } else {
-      Net.checkIn(this.tour.id, id)
+    const v = this.tourView();
+    if (v && v.canCheck) {
+      this.tourMsg = '';
+      Net.checkIn(this.tour.id, id, v.myRound)
         .then(() => this.wantTourney(true))
         .catch(e => { this.tourMsg = e.message; });
+    } else {
+      this.wantTourney(true);
     }
+  },
+
+  /* Marked in and the clock has come round: nobody should have to press
+     anything for the bell. Both men do this, the first opens the room and
+     the second walks into it. */
+  autoStart() {
+    if (this.autoBout || Wire.room) return;
+    const v = this.tourView();
+    if (!v || !v.ready) return;
+    const mine = this.myBout();
+    if (!mine) return;
+    this.autoBout = true;
+    Net.startBout(mine.id)
+      .then(room => { if (room) Wire.attach(room, this.roomFighter()); })
+      .catch(e => { this.tourMsg = e.message; this.autoBout = false; });
+  },
+
+  /* When each round boxes. Quarters on the hour, semis at half past, the
+     final on the hour after that. */
+  roundAt(round) {
+    return Date.parse(this.tour.starts_at) + (round - 1) * 30 * 60000;
+  },
+
+  checkedFor(id, round) {
+    return (this.tour.checked || []).some(c => c.fighter === id && c.round === round);
   },
 
   /* what the tournament screen needs to say */
   tourView() {
     const t = this.tour;
     if (!t) return null;
-    const start = Date.parse(t.starts_at);
-    const mins = Math.round((start - Date.now()) / 60000);
     const id = this.roomFighterId();
+    const start = Date.parse(t.starts_at);
     const inDraw = (t.bouts || []).some(b => b.red === id || b.blue === id);
-    const checked = (t.checked || []).some(c => c.fighter === id);
+    // the bout he is waiting on, whether or not it has both names in it yet
+    const pending = (t.bouts || []).find(b => !b.winner && (b.red === id || b.blue === id));
     const mine = this.myBout();
+    const round = pending ? pending.round : 0;
+    const at = round ? this.roundAt(round) : 0;
+    const left = at - Date.now();
+    const checked = round ? this.checkedFor(id, round) : false;
+    const open = !!round && !checked && left <= CHECKIN_OPEN && left > 0;
+    const ready = !!mine && checked && left <= 0;
+
+    let hint;
+    if (t.status === 'done') {
+      hint = t.winner && t.winner === id ? 'YOU WON IT - CHAMPION FOR THE WEEK'
+           : inDraw ? 'THE TOURNAMENT IS OVER' : 'THE TOURNAMENT IS OVER';
+    }
+    else if (!inDraw) hint = 'YOU ARE NOT IN THIS DRAW';
+    else if (!pending) hint = 'YOU ARE OUT OF THE TOURNAMENT';
+    else if (ready) hint = 'STARTING YOUR BOUT';
+    else if (!mine && left <= 0) hint = 'WAITING ON THE OTHER BOUT';
+    else if (checked) hint = 'MARKED IN - YOUR BOUT STARTS ' + countdownWords(left);
+    else if (open) hint = 'MARK IN - YOUR BOUT STARTS ' + countdownWords(left);
+    else if (left > 0) hint = 'MARKING IN OPENS ' + countdownWords(left - CHECKIN_OPEN);
+    else hint = 'YOU DID NOT MARK IN';
+
     return Object.assign({}, t, {
+      isIn: (f, r) => this.checkedFor(f, r),
       when: new Date(start).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }).toUpperCase(),
-      countdown: mins > 60 ? 'IN ' + Math.round(mins / 60) + ' HOURS'
-               : mins > 0 ? 'IN ' + mins + ' MINUTES'
-               : 'DOORS ARE OPEN',
-      hint: !inDraw ? 'YOU ARE NOT IN THIS DRAW'
-          : mine ? 'YOUR BOUT IS READY'
-          : checked ? 'CHECKED IN - WAITING'
-          : 'CHECK IN BEFORE IT STARTS',
-      action: !this.tour ? 'OPEN' : (mine ? 'FIGHT' : (checked ? 'REFRESH' : 'CHECK IN')),
+      countdown: countdownWords(start - Date.now()),
+      myRound: round, myBoutAt: at, msLeft: left,
+      canCheck: open, ready, hint,
+      action: open ? 'MARK IN' : 'REFRESH',
     });
   },
 
@@ -971,7 +1028,8 @@ const game = {
                     Math.floor(this.quickT / 60), this.quickMsg); break;
         case 'tourney':
           drawTourney(ctx, this.tourDiv, this.tourView(), this.tourNames,
-                      this.roomFighterId(), this.tourMsg); break;
+                      this.roomFighterId(), this.tourMsg,
+                      (this.frames >> 4) & 1); break;
         case 'mpsoon':
           drawSoon(ctx, MP_PAGES[0].title, MP_PAGES[0].lines); break;
         case 'rooms':

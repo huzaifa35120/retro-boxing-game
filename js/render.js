@@ -1310,19 +1310,22 @@ const RULE_PAGES = [
     'SPARRING AGAINST THE COMPUTER NEVER DOES.',
   ]},
   { title: 'THE SUNDAY TOURNAMENT', lines: [
-    'SEVEN PM SUNDAY, SYDNEY TIME, EVERY WEEK.',
+    'SUNDAY NIGHT, SYDNEY TIME, EVERY WEEK:',
+    'QUARTER FINALS 7:00, SEMIS 7:30,',
+    'THE FINAL AT 8:00.',
     '',
     'THE TOP 8 OF EACH DIVISION ARE DRAWN,',
     'SEEDED 1V8, 4V5, 2V7, 3V6 - SO THE TOP TWO',
     'CAN ONLY MEET IN THE FINAL.',
     '',
-    'CHECK IN BEFORE IT STARTS. ANYONE NOT',
-    'CHECKED IN FIVE MINUTES BEFORE THE FIRST',
-    'BELL FORFEITS, AND HIS OPPONENT WALKS',
-    'THROUGH TO THE NEXT ROUND.',
+    'THE MARK IN BUTTON APPEARS ON YOUR BOUT',
+    'TEN MINUTES BEFORE IT BOXES, AND GOES',
+    'AGAIN ON THE HALF HOUR. PRESS IT OR YOU',
+    'FORFEIT AND YOUR MAN WALKS THROUGH.',
     '',
-    'QUARTER FINALS, SEMI FINALS, FINAL.',
-    'THE WINNER IS CHAMPION FOR THE WEEK.',
+    'ONCE BOTH OF YOU HAVE MARKED IN THE FIGHT',
+    'OPENS ITSELF ON THE BELL. YOU DO NOT HAVE',
+    'TO PRESS ANYTHING ELSE.',
   ]},
   { title: 'FINDING A FIGHT', lines: [
     'QUICK FIGHT PUTS YOU IN A QUEUE AND',
@@ -1405,10 +1408,11 @@ function drawQuick(ctx, fighter, searching, secs, msg) {
 function boutName(fighters, id) {
   if (!id) return '---';
   const f = fighters[id];
-  return f ? f.name : '?';
+  // the bracket is narrow; eight letters is enough to know who it is
+  return f ? f.name.slice(0, 8) : '?';
 }
 
-function drawTourney(ctx, division, t, fighters, mine, msg) {
+function drawTourney(ctx, division, t, fighters, mine, msg, blink) {
   const x = 14, y = 16, w = VIEW_W - 28, h = 178;
   drawBox(ctx, x, y, w, h);
   ctext(ctx, WEIGHTS[division].name + '  SUNDAY TOURNAMENT', CX, y + 4, DARK);
@@ -1428,7 +1432,7 @@ function drawTourney(ctx, division, t, fighters, mine, msg) {
            : t.status === 'live' ? 'UNDER WAY' : t.countdown, CX, y + 30, '#585868');
 
   const cols = [x + 20, x + 140, x + 254];
-  ['QUARTER FINALS', 'SEMI FINALS', 'FINAL'].forEach((lab, i) =>
+  ['QUARTERS 19:00', 'SEMIS 19:30', 'FINAL 20:00'].forEach((lab, i) =>
     text(ctx, lab, cols[i], y + 44, DARK));
 
   const top = y + 54, span = 92;
@@ -1439,12 +1443,27 @@ function drawTourney(ctx, division, t, fighters, mine, msg) {
     const by = Math.round(top + b.slot * gap + (gap - 18) / 2);
     px(ctx, cx2 - 3, by - 2, 108, 21, '#eef0f6');
     px(ctx, cx2 - 3, by - 2, 108, 1, '#c8ccd8');
+
     const red = boutName(fighters, b.red), blue = boutName(fighters, b.blue);
     text(ctx, red, cx2, by, b.winner && b.winner === b.red ? '#1a7a2a' : DARK);
     text(ctx, blue, cx2, by + 10, b.winner && b.winner === b.blue ? '#1a7a2a' : DARK);
+
+    // a dot against each man who has marked in for this round
+    if (t.isIn) {
+      if (b.red && t.isIn(b.red, b.round))  px(ctx, cx2 + 51, by + 2, 3, 3, '#1a7a2a');
+      if (b.blue && t.isIn(b.blue, b.round)) px(ctx, cx2 + 51, by + 12, 3, 3, '#1a7a2a');
+    }
     if (b.walkover) text(ctx, 'W/O', cx2 + 80, by + 5, '#a06010');
-    if (mine && (b.red === mine || b.blue === mine) && !b.winner) {
-      text(ctx, '>', cx2 - 11, by + 5, '#c02828');
+
+    const isMine = mine && (b.red === mine || b.blue === mine) && !b.winner;
+    if (isMine) text(ctx, '>', cx2 - 11, by + 5, '#c02828');
+
+    // the door is open on this bout, so put the button on it
+    if (isMine && t.canCheck && b.round === t.myRound) {
+      const bx = cx2 + 59, bw = 45;
+      px(ctx, bx, by + 2, bw, 13, blink ? '#1a7a2a' : '#12561e');
+      px(ctx, bx, by + 2, bw, 1, '#48c060');
+      text(ctx, 'MARK IN', bx + 2, by + 5, '#ffffff');
     }
   }
 
@@ -1453,6 +1472,7 @@ function drawTourney(ctx, division, t, fighters, mine, msg) {
   ctext(ctx, KEY.L + KEY.R + ' DIVISION   SPACE ' + (t.action || 'REFRESH') + '   B BACK',
         CX, y + 166, DARK);
 }
+
 
 
 /* Everything the fight came to: the three cards, the verdict, and what each

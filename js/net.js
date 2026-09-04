@@ -248,7 +248,10 @@ const Net = {
   findCasual(fighterId) { return this.rpc('find_casual', { p_fighter: fighterId }).then(r => this.one(r)); },
   leaveCasual(fighterId) { return this.rpc('leave_casual', { p_fighter: fighterId }); },
   startBout(boutId) { return this.rpc('start_bout', { p_bout: boutId }).then(r => this.one(r)); },
-  checkIn(t, f) { return this.rpc('check_in', { p_tourney: t, p_fighter: f }); },
+  checkIn(t, f, round) {
+    return this.rpc('check_in', { p_tourney: t, p_fighter: f, p_round: round });
+  },
+  settleTournament(t) { return this.rpc('settle_tournament', { p_tourney: t }); },
   openTournament(div) { return this.rpc('open_tournament', { p_division: div }); },
 
   async pullTournament(division) {

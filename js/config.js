@@ -216,6 +216,24 @@ const ROOM_FETCH = 40;          // most rooms asked for in one go
 const ROOM_TTL = 5000;          // ms before the list is worth asking for again
 const ROOM_FIRST = 3;           // cursor rows 0-2 are the controls above the list
 
+/* The Sunday tournament runs to a timetable: quarters at 19:00, semis at
+   19:30, the final at 20:00. The door for marking in opens ten minutes
+   before each of them and shuts on the hour. */
+const ROUND_GAP = 30 * 60000;
+const CHECKIN_OPEN = 10 * 60000;
+
+/* 'IN 3 HOURS', 'IN 12 MINUTES', 'IN 0:41' - close up, count the seconds. */
+function countdownWords(ms) {
+  if (ms <= 0) return 'NOW';
+  const s = Math.round(ms / 1000);
+  if (s >= 3600) {
+    const h = Math.round(s / 3600);
+    return 'IN ' + h + (h === 1 ? ' HOUR' : ' HOURS');
+  }
+  if (s >= 600) return 'IN ' + Math.round(s / 60) + ' MINUTES';
+  return 'IN ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
 /* ---- palettes (Game Boy Color-ish) ---- */
 const PAL_PLAYER = {
   skin:'#f8c088', skinDk:'#c07840', hair:'#402018', hairLt:'#603028',
