@@ -921,9 +921,14 @@ const game = {
     }
 
     // ---- ui (never shakes) ---------------------------------------------------
-    drawStatus(ctx, this.localBoxer(), 2, 0, 170, this.localName());
-    drawStatus(ctx, this.remoteBoxer(), VIEW_W - 172, 0, 170,
-               Wire.active ? this.remoteName() : 'OPPONENT');
+    // Both screens show the same ring and the same meters: boxer A on the
+    // left, boxer B on the right, whichever of them you happen to be. The
+    // only thing that differs between the two screens is which one is
+    // marked as yours.
+    const mineIsA = !Wire.active || Wire.role === 'host';
+    drawStatus(ctx, this.player, 2, 0, 170, this.playerName, Wire.active && mineIsA);
+    drawStatus(ctx, this.bot, VIEW_W - 172, 0, 170,
+               Wire.active ? this.botName : 'OPPONENT', Wire.active && !mineIsA);
     drawClock(ctx, 176, 0, 48, this.round, this.roundT);
 
     px(ctx, 0, PANEL_Y, VIEW_W, VIEW_H - PANEL_Y, '#101828');

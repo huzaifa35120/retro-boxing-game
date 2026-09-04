@@ -419,10 +419,16 @@ function drawBar(ctx, x, y, w, frac, col, bg, cap) {
   }
 }
 
-function drawStatus(ctx, b, x, y, w, name) {
+function drawStatus(ctx, b, x, y, w, name, mine) {
   const h = 28;
   drawBox(ctx, x, y, w, h);
   text(ctx, name, x + 7, y + 3, '#181820');
+  if (mine) {                       // which of the two men you are boxing with
+    const bx = x + 14 + textW(name);
+    px(ctx, bx, y + 2, 22, 9, '#181820');
+    px(ctx, bx + 1, y + 3, 20, 7, '#f0c832');
+    text(ctx, 'YOU', bx + 3, y + 3, '#3a2c04');
+  }
   const cls = b.weight.short;
   text(ctx, cls, x + w - 8 - textW(cls), y + 3, '#585868');
 
