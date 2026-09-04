@@ -613,8 +613,8 @@ function drawPunchPage(ctx) {
 const DEFENCE_LINES = [
   ['GUARD', 'SPACE', 'STOPS THE HEAD, CATCHES SOME BODY',
                      'WORK. EVERY CATCH COSTS WIND.'],
-  ['DUCK', 'DOWN', 'GOES UNDER STRAIGHTS AND HOOKS.',
-                   'UPPERCUTS AND BODY SHOTS LAND.'],
+  ['DUCK', 'DOWN', 'GOES UNDER STRAIGHTS AND HOOKS. UPPERCUTS',
+                   'AND BODY LAND. LEGS GIVE OUT AFTER 2 SEC.'],
   ['SLIP', 'Q / E', 'TAKES THE HEAD OFF STRAIGHTS AND',
                     'UPPERCUTS. HOOKS COME AROUND IT.'],
 ];
@@ -1071,23 +1071,35 @@ const RULE_PAGES = [
     'THE CORNER RETURNS 130 HEALTH BETWEEN',
     'ROUNDS, AND ALL YOUR WIND.',
   ]},
-  { title: 'PUNCHING AND DEFENCE', lines: [
+  { title: 'THE PUNCHES', lines: [
     'JAB IS QUICK AND LIGHT. CROSS IS SLOW AND',
     'HEAVY. BOTH HOOKS MATCH THE CROSS.',
     'UPPERCUTS HIT HARDEST BUT REACH LEAST.',
     'BODY SHOTS TAKE THE WIND OUT OF A MAN.',
     '',
+    'EVERY PUNCH COSTS STAMINA TO THROW, AND',
+    'THE HEAVIER IT IS THE MORE IT COSTS.',
+    '',
+    'THE TANK ALSO SHRINKS AS YOU THROW: THE',
+    'CEILING IT RECOVERS TO FALLS ALL FIGHT.',
+    'PICK YOUR PUNCHES.',
+  ]},
+  { title: 'DEFENCE', lines: [
     'GUARD STOPS EVERY HEAD PUNCH AND CATCHES',
     'ABOUT HALF THE BODY WORK - BUT EVERY',
     'PUNCH IT CATCHES COSTS YOU WIND.',
+    '',
     'DUCK GOES UNDER STRAIGHTS AND HOOKS,',
     'AND INTO UPPERCUTS AND BODY SHOTS.',
+    '',
     'SLIP TAKES THE HEAD OFF STRAIGHTS AND',
     'UPPERCUTS. HOOKS COME AROUND IT.',
-    'A SLIP IS TIMED - IT CANNOT BE HELD.',
     '',
-    'THE TANK SHRINKS AS YOU THROW. PICK',
-    'YOUR PUNCHES.',
+    'NEITHER CAN BE LIVED IN. A SLIP IS A TIMED',
+    'MOVE, AND AFTER TWO SECONDS OF CROUCHING',
+    'HIS LEGS GIVE OUT: HE RISES, STARTS TAKING',
+    'PUNCHES, AND MUST STAND A MOMENT BEFORE',
+    'HE CAN GO DOWN AGAIN.',
   ]},
   { title: 'FIGHTERS AND DIVISIONS', lines: [
     'SIX DIVISIONS, 145LB UP TO 265LB.',
@@ -1154,13 +1166,14 @@ const RULE_PAGES = [
 
 function drawRules(ctx, page) {
   const p = RULE_PAGES[page];
-  const x = 14, y = 14, w = VIEW_W - 28, h = 170;
+  const x = 14, y = 12, w = VIEW_W - 28, h = 184;
   drawBox(ctx, x, y, w, h);
   ctext(ctx, p.title, CX, y + 5, DARK);
   px(ctx, x + 10, y + 15, w - 20, 1, DARK);
-  p.lines.forEach((l, i) => { if (l) text(ctx, l, x + 16, y + 20 + i * 9, DARK); });
+  p.lines.forEach((l, i) => { if (l && i < 16) text(ctx, l, x + 16, y + 20 + i * 9, DARK); });
+  px(ctx, x + 10, y + 166, w - 20, 1, DARK);
   ctext(ctx, '< A/D   PAGE ' + (page + 1) + ' OF ' + RULE_PAGES.length + '   B BACK >',
-        CX, y + h + 4, DARK);
+        CX, y + 171, DARK);
 }
 
 
