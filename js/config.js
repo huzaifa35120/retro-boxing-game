@@ -10,6 +10,8 @@ const PANEL_Y = VIEW_H - 54;   // top of the bottom info box
    A boxing ring is square, so these two are equal. It still draws wider than
    it is tall because we are looking at it from ringside, not from above. */
 const RING_HX = 130, RING_HZ = 130;
+// the ring narrows towards the back, so it reads as a box you look into
+const TAPER = 0.0013;
 const PAD_X = 14, PAD_Z = 14;  // how far inside the ropes a boxer may stand
 const FLOOR_TOP = CY - RING_HZ * PERSP;
 const FLOOR_BOT = CY + RING_HZ * PERSP;
@@ -231,3 +233,5 @@ const easeOut = t => 1 - (1 - t) * (1 - t);
 const easeIn  = t => t * t;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const screenY = z => CY + z * PERSP;
+const depthScale = z => 1 + z * TAPER;          // nearer is wider
+const screenX = (x, z) => CX + x * depthScale(z);

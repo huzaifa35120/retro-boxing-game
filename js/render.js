@@ -18,193 +18,215 @@ function ctext(ctx, s, cx, y, col) {
 
 /* ------------------------------------------------------------------ ring */
 
-const ROPE_H = [10, 19, 28];       // rope heights above the canvas
-const POST_H = 30;
+/* ---------------------------------------------------------------- the ring
 
-/* ---- crowd ---------------------------------------------------------------
-   Three bands of heads: small and dim at the back, bigger and darker at the
-   front, with a rail between them and the ring. A handful of fixed camera
-   flashes sit in the dark. */
+   The ring never moves, so it is drawn once into two offscreen canvases -
+   everything behind the boxers, and the near ropes in front of them - and
+   each frame is then two drawImage calls instead of several hundred rects. */
+
+const POST_BACK = 30, POST_FRONT = 40;
+const ROPE_AT = [0.30, 0.55, 0.80];        // up the post
 const FLASHES = [];
-for (let i = 0; i < 14; i++) {
-  FLASHES.push({ x: (i * 61 + 23) % (VIEW_W - 20) + 10, y: (i * 13) % 30, t: i * 7 });
+for (let i = 0; i < 12; i++) {
+  FLASHES.push({ x: (i * 61 + 23) % (VIEW_W - 24) + 12, y: 30 + (i * 7) % 10, t: i * 13 });
 }
 
-function drawCrowd(ctx, frame) {
-  px(ctx, 0, 0, VIEW_W, VIEW_H, '#0a0e18');
-  const bottom = Math.round(FLOOR_TOP) - 5;   // the stands end where the ring starts
-  const top = 24;                             // ...and begin under the meters
-  px(ctx, 0, top - 4, VIEW_W, bottom - top + 8, '#0e1424');
+let ringBack = null, ringFront = null;
 
-  // three banks of heads: small and dim at the back, bigger and darker in front
-  for (let x = -4; x < VIEW_W; x += 7) {
+function surface() {
+  const c = document.createElement('canvas');
+  c.width = VIEW_W; c.height = VIEW_H;
+  return c;
+}
+
+// a chunky pixel line, for ropes running away from you
+function line(ctx, x0, y0, x1, y1, col, th) {
+  const dx = x1 - x0, dy = y1 - y0;
+  const n = Math.max(1, Math.round(Math.max(Math.abs(dx), Math.abs(dy))));
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    px(ctx, Math.round(x0 + dx * t), Math.round(y0 + dy * t), th || 2, th || 2, col);
+  }
+}
+
+/* ---- the crowd, in the band left between the meters and the ropes ---- */
+function paintCrowd(ctx) {
+  const top = 26, bottom = Math.round(FLOOR_TOP) - 2;
+  px(ctx, 0, 0, VIEW_W, VIEW_H, '#05070d');
+  px(ctx, 0, top - 4, VIEW_W, bottom - top + 6, '#0c1020');
+
+  // the aisle, lit, straight up the middle behind the ring
+  px(ctx, CX - 16, top - 4, 32, bottom - top + 4, '#141a2e');
+  for (let y = top - 2; y < bottom - 2; y += 4) {
+    px(ctx, CX - 14, y, 28, 2, '#1c2440');
+    px(ctx, CX - 14, y + 2, 28, 1, '#0e1322');
+  }
+
+  // two banks of heads, the near one bigger and darker
+  for (let x = -6; x < VIEW_W; x += 7) {
+    if (Math.abs(x - CX) < 15) continue;
     const h = 4 + ((x * 7) % 3);
-    px(ctx, x, top + 6 - h, 5, h + 2, '#171e34');
-    px(ctx, x + 1, top + 3 - h, 3, 3, '#1d2540');
+    px(ctx, x, top + 5 - h, 5, h + 2, '#161c30');
+    px(ctx, x + 1, top + 2 - h, 3, 3, '#1e2640');
   }
-  for (let x = -6; x < VIEW_W; x += 9) {
-    const h = 5 + ((x * 5) % 4);
-    px(ctx, x, top + 18 - h, 7, h + 3, '#212a48');
-    px(ctx, x + 2, top + 14 - h, 4, 4, '#2c3658');
-  }
-  for (let x = -8; x < VIEW_W; x += 12) {
-    const h = 6 + ((x * 3) % 5);
-    px(ctx, x, bottom - 5 - h, 9, h + 5, '#2c3558');
-    px(ctx, x + 2, bottom - 9 - h, 5, 5, '#3a4570');
-    px(ctx, x + 3, bottom - 8 - h, 2, 2, '#4d5a90');
+  for (let x = -9; x < VIEW_W; x += 10) {
+    if (Math.abs(x - CX) < 17) continue;
+    const h = 6 + ((x * 3) % 4);
+    px(ctx, x, bottom - 7 - h, 8, h + 6, '#242c4a');
+    px(ctx, x + 2, bottom - 11 - h, 5, 5, '#323c62');
+    px(ctx, x + 3, bottom - 10 - h, 2, 2, '#465288');
   }
 
-  for (const f of FLASHES) {                  // the odd camera going off
-    if (((frame + f.t) % 150) < 5) {
-      px(ctx, f.x, f.y + top - 2, 3, 1, '#f8f8d8');
-      px(ctx, f.x + 1, f.y + top - 3, 1, 3, '#f8f8d8');
-    }
+  // EXIT signs, low and out at the edges where the meters do not reach
+  for (const ex of [6, VIEW_W - 30]) {
+    const ey = bottom - 16;
+    px(ctx, ex, ey, 24, 10, '#08150c');
+    px(ctx, ex + 1, ey + 1, 22, 8, '#0f3a1c');
+    text(ctx, 'EXIT', ex + 2, ey + 2, '#4cd468');
   }
 
-  // rail between the crowd and the ringside floor
-  px(ctx, 0, bottom, VIEW_W, 2, '#39415e');
-  px(ctx, 0, bottom + 2, VIEW_W, 3, '#080b12');
-  // ringside floor either side of the apron
-  px(ctx, 0, bottom + 5, VIEW_W, VIEW_H - bottom - 5, '#0c111c');
-  for (let x = 2; x < VIEW_W; x += 16) px(ctx, x, bottom + 7, 8, 1, '#101725');
+  // the rail in front of them, then the arena floor
+  px(ctx, 0, bottom - 1, VIEW_W, 2, '#39415e');
+  px(ctx, 0, bottom + 1, VIEW_W, 3, '#080b12');
+  px(ctx, 0, bottom + 4, VIEW_W, VIEW_H - bottom - 4, '#0a0d16');
+  for (let x = 4; x < VIEW_W; x += 22) px(ctx, x, bottom + 8, 14, 1, '#101828');
+  for (let y = bottom + 14; y < VIEW_H; y += 16) px(ctx, 0, y, VIEW_W, 1, '#0d1220');
 }
 
-/* ---- the canvas ---------------------------------------------------------- */
-
-function drawFloor(ctx) {
-  const L = CX - RING_HX, R = CX + RING_HX;
+/* ---- the platform and the canvas on top of it ---- */
+function paintFloor(ctx) {
   const T = Math.round(FLOOR_TOP), B = Math.round(FLOOR_BOT);
-  const w = R - L, h = B - T;
+  const halfAt = y => RING_HX * depthScale((y - CY) / PERSP);
 
-  // apron: the thickness of the platform, plus the skirt below it
-  px(ctx, L - 8, B, w + 16, APRON_H, '#1c2f94');
-  px(ctx, L - 8, B, w + 16, 2, '#5878e8');
-  px(ctx, L - 8, B + 2, w + 16, 1, '#3050c0');
-  px(ctx, L - 8, B + APRON_H - 3, w + 16, 3, '#0e1a58');
-  for (let x = L - 6; x < R + 8; x += 10) {      // pleats in the skirt
-    px(ctx, x, B + 4, 2, APRON_H - 7, '#16257a');
-    px(ctx, x + 5, B + 5, 1, APRON_H - 9, '#2440ac');
+  // apron: the thickness of the platform, panelled, and the skirt below
+  for (let y = B; y < B + APRON_H; y++) {
+    const hw = halfAt(B) + 6;
+    const shade = y < B + 2 ? '#5878e8' : (y > B + APRON_H - 4 ? '#0e1a58' : '#1c2f94');
+    px(ctx, CX - hw, y, hw * 2, 1, shade);
   }
+  const hwB = halfAt(B) + 6;
+  for (let x = -hwB + 5; x < hwB - 9; x += 13) {   // stop short of the edge
+    px(ctx, CX + x, B + 3, 2, APRON_H - 6, '#16257a');
+    px(ctx, CX + x + 6, B + 4, 1, APRON_H - 8, '#2a46b4');
+  }
+  px(ctx, CX - hwB, B + APRON_H, hwB * 2, 2, '#05070d');
 
-  // canvas, lit from above: brightest through the middle, dimmer at the edges.
-  // Each band is dithered into the one outside it so the light does not read
-  // as a box drawn on the floor.
-  const band = (inset, insetY, col, outer) => {
-    const bx = L + inset, by = T + insetY;
-    const bw = w - inset * 2, bh = h - insetY * 2;
-    px(ctx, bx, by, bw, bh, col);
-    for (let i = 0; i < bw; i += 2) {
-      px(ctx, bx + i, by, 1, 1, outer);
-      px(ctx, bx + i + 1, by + 1, 1, 1, outer);
-      px(ctx, bx + i, by + bh - 1, 1, 1, outer);
-      px(ctx, bx + i + 1, by + bh - 2, 1, 1, outer);
-    }
-    for (let i = 0; i < bh; i += 2) {
-      px(ctx, bx, by + i, 1, 1, outer);
-      px(ctx, bx + 1, by + i + 1, 1, 1, outer);
-      px(ctx, bx + bw - 1, by + i, 1, 1, outer);
-      px(ctx, bx + bw - 2, by + i + 1, 1, 1, outer);
-    }
-  };
-  px(ctx, L, T, w, h, '#e0d2a6');
-  band(9, 5, '#e9dcb4', '#e0d2a6');
-  band(28, 12, '#f1e5c2', '#e9dcb4');
-  band(56, 21, '#f7edcd', '#f1e5c2');
-
+  // canvas, lit from above: a trapezoid, brightest through the middle
+  for (let y = T; y < B; y++) {
+    const hw = Math.round(halfAt(y));
+    const t = (y - T) / (B - T);
+    const edge = Math.min(t, 1 - t) * 2;             // 0 at the rails, 1 mid
+    let col = '#ded09c';
+    if (edge > 0.18) col = '#e8dbb0';
+    if (edge > 0.42) col = '#f1e5c2';
+    if (edge > 0.66) col = '#f7edcd';
+    px(ctx, CX - hw, y, hw * 2, 1, col);
+    px(ctx, CX - hw, y, 2, 1, '#c2b088');          // worn edges
+    px(ctx, CX + hw - 2, y, 2, 1, '#c2b088');
+  }
   // weave
   for (let y = T + 2; y < B - 1; y += 3) {
-    for (let x = L + 2 + ((y - T) % 6 === 2 ? 0 : 3); x < R - 1; x += 6) {
-      px(ctx, x, y, 1, 1, '#00000010');
+    const hw = Math.round(halfAt(y)) - 3;
+    for (let x = -hw + ((y - T) % 6 === 2 ? 0 : 3); x < hw; x += 6) px(ctx, CX + x, y, 1, 1, '#00000012');
+  }
+  // border line inside the ropes
+  for (const inset of [10, 13]) {
+    for (let y = T + inset; y < B - inset; y++) {
+      const hw = Math.round(halfAt(y)) - inset;
+      if (y === T + inset || y === B - inset - 1) px(ctx, CX - hw, y, hw * 2, 1, '#cbb98e');
+      else { px(ctx, CX - hw, y, 1, 1, '#cbb98e'); px(ctx, CX + hw - 1, y, 1, 1, '#cbb98e'); }
     }
   }
 
   // centre mark
   const cy = (T + B) >> 1;
-  px(ctx, CX - 34, cy - 13, 68, 26, '#efe1bb');
-  px(ctx, CX - 32, cy - 11, 64, 22, '#f6ecca');
-  px(ctx, CX - 30, cy - 8, 60, 16, '#e4d5a6');
-  px(ctx, CX - 28, cy - 6, 56, 12, '#f0e4c0');
-  ctext(ctx, 'RETRO', CX, cy - 8, '#c9b485');
-  ctext(ctx, 'BOXING', CX, cy + 1, '#c9b485');
-
-  // edge of the canvas
-  px(ctx, L, T, w, 1, '#b8a67e');
-  px(ctx, L, B - 1, w, 1, '#b8a67e');
-  px(ctx, L, T, 1, h, '#b8a67e');
-  px(ctx, R - 1, T, 1, h, '#b8a67e');
+  px(ctx, CX - 46, cy - 17, 92, 34, '#e6d8ac');
+  px(ctx, CX - 44, cy - 15, 88, 30, '#f3e7c6');
+  px(ctx, CX - 41, cy - 12, 82, 24, '#e6d8ac');
+  px(ctx, CX - 39, cy - 10, 78, 20, '#f3e7c6');
+  ctext(ctx, '* RETRO *', CX, cy - 7, '#c2ac7a');
+  ctext(ctx, 'BOXING', CX, cy + 2, '#c2ac7a');
 }
 
-/* ---- posts and ropes ------------------------------------------------------ */
-
-function drawPost(ctx, x, yBase, padCol, padDk) {
-  px(ctx, x - 4, yBase - 3, 9, 4, '#1a1f30');          // base plate
-  px(ctx, x - 3, yBase - POST_H, 6, POST_H, '#4a5064');
-  px(ctx, x - 3, yBase - POST_H, 2, POST_H, '#7c8598');
-  px(ctx, x + 2, yBase - POST_H, 1, POST_H, '#2a2f3e');
-  // padded cap
-  px(ctx, x - 5, yBase - POST_H - 7, 11, 8, padDk);
-  px(ctx, x - 5, yBase - POST_H - 7, 11, 3, padCol);
-  px(ctx, x - 4, yBase - POST_H - 6, 9, 1, '#ffffff66');
-  px(ctx, x - 5, yBase - POST_H - 1, 11, 1, '#181820');
+/* ---- posts, pads and ropes ---- */
+function paintPost(ctx, x, yBase, h, pad, padDk, w) {
+  px(ctx, x - w - 1, yBase - 2, w * 2 + 3, 4, '#05070d');
+  px(ctx, x - w, yBase - h, w * 2, h, padDk);
+  px(ctx, x - w, yBase - h, Math.max(2, w - 1), h, pad);
+  px(ctx, x + w - 2, yBase - h, 2, h, '#00000055');
+  px(ctx, x - w, yBase - h - 3, w * 2, 4, pad);       // capped top
+  px(ctx, x - w + 1, yBase - h - 2, w * 2 - 2, 1, '#ffffff66');
 }
 
-// turnbuckle wrap where the ropes meet a post
-function drawTurnbuckle(ctx, x, y, col) {
-  px(ctx, x - 4, y - 1, 9, 5, col);
-  px(ctx, x - 4, y - 1, 9, 1, '#ffffff55');
-  px(ctx, x - 4, y + 3, 9, 1, '#00000055');
-}
-
-/* Ropes bow a little between the posts instead of running dead straight. */
-function drawRopeH(ctx, x0, x1, y, sag) {
-  const n = 8, span = x1 - x0;
-  for (let i = 0; i < n; i++) {
-    const a = x0 + Math.round(span * i / n);
-    const b = x0 + Math.round(span * (i + 1) / n);
-    const t = (i + 0.5) / n;
-    const dy = Math.round(Math.sin(t * Math.PI) * sag);
-    px(ctx, a, y + dy, b - a, 2, '#f4f4f8');
-    px(ctx, a, y + dy + 2, b - a, 1, '#9aa0b8');
+function paintPads(ctx, x, yBase, h, col, dk, w) {
+  for (const a of ROPE_AT) {
+    const y = Math.round(yBase - h * a) - 3;
+    px(ctx, x - w - 2, y, w * 2 + 4, 7, dk);
+    px(ctx, x - w - 2, y, w * 2 + 4, 2, col);
+    px(ctx, x - w - 1, y + 1, w * 2 + 2, 1, '#ffffff44');
   }
 }
 
-function drawRopeV(ctx, x, y0, y1) {
-  px(ctx, x, y0, 2, y1 - y0, '#e8e8f0');
-  px(ctx, x + 2, y0, 1, y1 - y0, '#8f95ad');
+function buildRing() {
+  ringBack = surface();
+  ringFront = surface();
+  const b = ringBack.getContext('2d');
+  const f = ringFront.getContext('2d');
+  b.imageSmoothingEnabled = false; f.imageSmoothingEnabled = false;
+
+  const T = Math.round(FLOOR_TOP), B = Math.round(FLOOR_BOT);
+  const bx = Math.round(screenX(-RING_HX, -RING_HZ)), bX = Math.round(screenX(RING_HX, -RING_HZ));
+  const fx = Math.round(screenX(-RING_HX, RING_HZ)), fX = Math.round(screenX(RING_HX, RING_HZ));
+  const RED = ['#e04040', '#8c1414'], BLU = ['#4878e8', '#16307c'];
+
+  paintCrowd(b);
+  paintFloor(b);
+
+  // back posts and the ropes that hang behind the boxers
+  paintPost(b, bx, T, POST_BACK, RED[0], RED[1], 4);
+  paintPost(b, bX, T, POST_BACK, BLU[0], BLU[1], 4);
+  for (const a of ROPE_AT) {
+    const yb = T - POST_BACK * a, yf = B - POST_FRONT * a;
+    line(b, bx, yb, bX, yb, '#f2f2f8', 2);            // the far rope
+    px(b, bx, yb + 2, bX - bx, 1, '#9aa0b8');
+    line(b, bx, yb, fx, yf, '#e6e6f0', 2);            // and the two sides
+    line(b, bX, yb, fX, yf, '#e6e6f0', 2);
+  }
+  paintPads(b, bx, T, POST_BACK, RED[0], RED[1], 4);
+  paintPads(b, bX, T, POST_BACK, BLU[0], BLU[1], 4);
+
+  // the near ropes and posts, which the boxers pass behind
+  for (const a of ROPE_AT) {
+    const yf = B - POST_FRONT * a;
+    line(f, fx, yf, fX, yf, '#f8f8fc', 3);
+    px(f, fx, yf + 3, fX - fx, 1, '#8f95ad');
+  }
+  paintPost(f, fx, B, POST_FRONT, BLU[0], BLU[1], 5);
+  paintPost(f, fX, B, POST_FRONT, RED[0], RED[1], 5);
+  paintPads(f, fx, B, POST_FRONT, BLU[0], BLU[1], 5);
+  paintPads(f, fX, B, POST_FRONT, RED[0], RED[1], 5);
 }
 
 function drawRingBack(ctx, frame) {
-  const L = CX - RING_HX, R = CX + RING_HX;
-  drawCrowd(ctx, frame || 0);
-  drawFloor(ctx);
-  for (const h of ROPE_H) {
-    drawRopeH(ctx, L, R, Math.round(FLOOR_TOP - h), 2);
-    drawRopeV(ctx, L - 1, Math.round(FLOOR_TOP - h), Math.round(FLOOR_BOT - h));
-    drawRopeV(ctx, R - 2, Math.round(FLOOR_TOP - h), Math.round(FLOOR_BOT - h));
+  if (!ringBack) buildRing();
+  ctx.drawImage(ringBack, 0, 0);
+  for (const fl of FLASHES) {                          // the odd camera going off
+    if (((frame + fl.t) % 170) < 4) {
+      px(ctx, fl.x, fl.y, 3, 1, '#f8f8d8');
+      px(ctx, fl.x + 1, fl.y - 1, 1, 3, '#f8f8d8');
+    }
   }
-  for (const h of ROPE_H) {
-    drawTurnbuckle(ctx, L, Math.round(FLOOR_TOP - h), '#d83030');
-    drawTurnbuckle(ctx, R, Math.round(FLOOR_TOP - h), '#3060d8');
-  }
-  drawPost(ctx, L, Math.round(FLOOR_TOP), '#e04040', '#901818');
-  drawPost(ctx, R, Math.round(FLOOR_TOP), '#4878e8', '#182f90');
 }
 
 function drawRingFront(ctx) {
-  const L = CX - RING_HX, R = CX + RING_HX;
-  for (const h of ROPE_H) drawRopeH(ctx, L, R, Math.round(FLOOR_BOT - h), 3);
-  for (const h of ROPE_H) {
-    drawTurnbuckle(ctx, L, Math.round(FLOOR_BOT - h), '#3060d8');
-    drawTurnbuckle(ctx, R, Math.round(FLOOR_BOT - h), '#d83030');
-  }
-  drawPost(ctx, L, Math.round(FLOOR_BOT), '#4878e8', '#182f90');
-  drawPost(ctx, R, Math.round(FLOOR_BOT), '#e04040', '#901818');
+  if (!ringFront) buildRing();
+  ctx.drawImage(ringFront, 0, 0);
 }
 
 /* ----------------------------------------------------------------- boxer */
 
 function drawShadow(ctx, b) {
-  const x = Math.round(CX + b.x), y = Math.round(screenY(b.z));
+  const x = Math.round(screenX(b.x, b.z)), y = Math.round(screenY(b.z));
   px(ctx, x - 7, y - 2, 15, 4, '#cbb894');
   px(ctx, x - 9, y - 1, 19, 2, '#cbb894');
   px(ctx, x - 5, y - 3, 11, 1, '#cbb894');
@@ -233,7 +255,7 @@ function drawArm(ctx, x0, y0, x1, y1, P) {
 }
 
 function drawBody(ctx, b, P) {
-  const fx = Math.round(CX + b.x);
+  const fx = Math.round(screenX(b.x, b.z));
   const fy = Math.round(screenY(b.z)) - b.bob;
   const d  = Math.round(b.duckAmt * 8);
   const dir = b.dir;
@@ -323,7 +345,7 @@ function drawBody(ctx, b, P) {
 /* flat on the canvas. Drawn head-first away from whatever put them there. */
 function drawDownedBoxer(ctx, b) {
   const P = b.flash > 0 ? PAL_FLASH : b.pal;
-  const fx = Math.round(CX + b.x), fy = Math.round(screenY(b.z));
+  const fx = Math.round(screenX(b.x, b.z)), fy = Math.round(screenY(b.z));
   const s = b.hitDirX >= 0 ? 1 : -1;
   // local x runs from the boots (-20) to the head (+21), mirrored when s < 0
   const R = (lx, y, w, h, c) => px(ctx, s > 0 ? fx + lx : fx - lx - w, y, w, h, c);
@@ -355,7 +377,7 @@ function drawBoxer(ctx, b) {
   const parts = [];
   for (const hand of ['L', 'R']) {
     const g = b.gloves[hand];
-    const gx = CX + g.x;
+    const gx = screenX(g.x, g.z);
     const gy = screenY(g.z) - g.h - b.bob;
     const sx = CX + b.sx(hand === 'L' ? -5 : 5);
     const sz = b.sz(hand === 'L' ? -5 : 5);
@@ -372,7 +394,7 @@ function drawBoxer(ctx, b) {
 /* -------------------------------------------------------------- fx / ui */
 
 function drawSpark(ctx, s) {
-  const x = Math.round(CX + s.x), y = Math.round(screenY(s.z) - s.h);
+  const x = Math.round(screenX(s.x, s.z)), y = Math.round(screenY(s.z) - s.h);
   const r = Math.round(s.r);
   const col = s.life > 3 ? '#f8f8f8' : '#f8d038';
   px(ctx, x - r, y, r * 2 + 1, 1, col);
@@ -384,7 +406,7 @@ function drawSpark(ctx, s) {
 }
 
 function drawParticle(ctx, p) {
-  px(ctx, CX + p.x, screenY(p.z) - p.h, 2, 2, p.col);
+  px(ctx, screenX(p.x, p.z), screenY(p.z) - p.h, 2, 2, p.col);
 }
 
 // classic dialogue box: white fill, dark rounded frame
@@ -1023,7 +1045,7 @@ function drawRooms(ctx, fighter, row, code, blink) {
    looking at the same picture from the same side - which means one of them is
    watching the far corner. A marker says which man is yours. */
 function drawYouTag(ctx, b) {
-  const x = Math.round(CX + b.x);
+  const x = Math.round(screenX(b.x, b.z));
   const y = Math.round(screenY(b.z)) - (b.down ? 22 : 54);
   const W = '#f8f8f8', D = '#181820';
   px(ctx, x - 10, y - 1, 21, 9, D);
