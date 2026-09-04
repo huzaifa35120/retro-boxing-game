@@ -522,6 +522,7 @@ const game = {
   },
 
   stepBoard() {
+    Net.wantBoard(this.boardDiv);        // throttled inside, and retries a failure
     const dir = (Input.any('d', 'ArrowRight') ? 1 : 0) - (Input.any('a', 'ArrowLeft') ? 1 : 0);
     if (dir) {
       this.boardDiv = (this.boardDiv + dir + WEIGHTS.length) % WEIGHTS.length;

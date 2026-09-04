@@ -14,7 +14,7 @@ const Net = {
   renewing: null,         // in-flight token renewal, shared by every caller
   board: null,            // cached leaderboard rows
   boardDivision: -1,
-  boardAt: 0,
+  boardNext: 0,          // when the board is worth asking for again
   rooms: null,            // cached list of rooms standing open
   roomsAt: 0,
 
@@ -31,11 +31,18 @@ const Net = {
   },
 
   async once(path, o) {
-    const res = await fetch(SUPABASE.url + path, {
-      method: o.method || 'GET',
-      headers: Object.assign(this.headers(o.auth !== false), o.headers || {}),
-      body: o.body ? JSON.stringify(o.body) : undefined,
-    });
+    let res;
+    try {
+      res = await fetch(SUPABASE.url + path, {
+        method: o.method || 'GET',
+        headers: Object.assign(this.headers(o.auth !== false), o.headers || {}),
+        body: o.body ? JSON.stringify(o.body) : undefined,
+      });
+    } catch (e) {
+      // the request never left, or never came back: a dropped connection
+      // rather than anything the server said
+      return { ok: false, status: 0, data: null, msg: 'NO ANSWER - CHECK YOUR CONNECTION' };
+    }
     const txt = await res.text();
     let data = null;
     if (txt) { try { data = JSON.parse(txt); } catch (e) { data = txt; } }
@@ -294,15 +301,19 @@ const Net = {
   // fire-and-forget for the UI: sets .board when it arrives
   wantBoard(division) {
     if (!this.online()) return;
-    if (this.boardDivision === division && Date.now() - this.boardAt < 30000) return;
+    if (this.boardDivision === division && Date.now() < this.boardNext) return;
     this.boardDivision = division;
-    this.boardAt = Date.now();
+    this.boardNext = Date.now() + 30000;
     this.busy = true;
     this.error = '';
     this.champ = null;
     Promise.all([this.pullBoard(division), this.pullChampion(division).catch(() => null)])
       .then(([rows, champ]) => { this.board = rows || []; this.champ = champ; })
-      .catch(e => { this.error = e.message; this.board = null; })
+      .catch(e => {
+        this.error = e.message;
+        this.board = null;
+        this.boardNext = Date.now() + 3000;   // a dropped request should not stick
+      })
       .then(() => { this.busy = false; });
   },
 };
