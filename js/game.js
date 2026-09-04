@@ -864,6 +864,7 @@ const game = {
     drawRingBack(ctx, this.frames);
     const order = [this.player, this.bot].sort((a, b) => a.z - b.z);
     for (const b of order) drawBoxer(ctx, b);
+    if (Wire.active && this.screen === 'fight') drawYouTag(ctx, this.localBoxer());
     for (const p of this.bits) drawParticle(ctx, p);
     for (const s of this.sparks) drawSpark(ctx, s);
     drawRingFront(ctx);

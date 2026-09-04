@@ -1011,6 +1011,22 @@ function drawRooms(ctx, fighter, row, code, blink) {
   ctext(ctx, 'SPACE CONFIRM    B BACK', CX, y + h + 6, DARK);
 }
 
+/* Both screens show the same ring, so in an online fight the two players are
+   looking at the same picture from the same side - which means one of them is
+   watching the far corner. A marker says which man is yours. */
+function drawYouTag(ctx, b) {
+  const x = Math.round(CX + b.x);
+  const y = Math.round(screenY(b.z)) - (b.down ? 22 : 54);
+  const W = '#f8f8f8', D = '#181820';
+  px(ctx, x - 10, y - 1, 21, 9, D);
+  px(ctx, x - 9, y, 19, 7, W);
+  text(ctx, 'YOU', x - 8, y, D);
+  px(ctx, x - 3, y + 8, 7, 1, D);
+  px(ctx, x - 2, y + 9, 5, 1, D);
+  px(ctx, x - 1, y + 10, 3, 1, D);
+  px(ctx, x, y + 11, 1, 1, D);
+}
+
 // the two machines have stopped agreeing - say so rather than hide it
 function drawDesync(ctx) {
   const w = 190;
