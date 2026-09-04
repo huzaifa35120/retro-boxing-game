@@ -11,6 +11,7 @@ const Net = {
   busy: false,
   error: '',
   saveError: '',          // last time a write did not reach the server
+  renewing: null,         // in-flight token renewal, shared by every caller
   board: null,            // cached leaderboard rows
   boardDivision: -1,
   boardAt: 0,
@@ -29,8 +30,7 @@ const Net = {
     return h;
   },
 
-  async call(path, opts) {
-    const o = opts || {};
+  async once(path, o) {
     const res = await fetch(SUPABASE.url + path, {
       method: o.method || 'GET',
       headers: Object.assign(this.headers(o.auth !== false), o.headers || {}),
@@ -39,12 +39,46 @@ const Net = {
     const txt = await res.text();
     let data = null;
     if (txt) { try { data = JSON.parse(txt); } catch (e) { data = txt; } }
-    if (!res.ok) {
-      const msg = (data && (data.msg || data.message || data.error_description ||
-                            data.error || data.hint)) || ('HTTP ' + res.status);
-      throw new Error(String(msg).toUpperCase().slice(0, 88));
+    const msg = (data && (data.msg || data.message || data.error_description ||
+                          data.error || data.hint)) || ('HTTP ' + res.status);
+    return { ok: res.ok, status: res.status, data, msg: String(msg) };
+  },
+
+  /* An access token only lasts an hour. When one runs out mid-session the
+     call is not lost: the token is renewed off the refresh token and the
+     request goes again, so a long evening does not quietly stop saving. */
+  async call(path, opts) {
+    const o = opts || {};
+    let r = await this.once(path, o);
+    if (!r.ok && this.looksExpired(r) && o.auth !== false && !o.retried) {
+      if (await this.renew()) {
+        r = await this.once(path, Object.assign({}, o, { retried: true }));
+      }
     }
-    return data;
+    if (!r.ok) throw new Error(r.msg.toUpperCase().slice(0, 88));
+    return r.data;
+  },
+
+  /* Any 401 while we are holding a session means the token is no good, and
+     the wording varies with how it went bad, so do not try to read it. 403 is
+     left alone: that is the row saying no, and a new token will not help. */
+  looksExpired(r) { return this.signedIn() && r.status === 401; },
+
+  /* However many calls trip over the same dead token, they all wait on one
+     renewal rather than each firing their own. */
+  renew() {
+    if (this.renewing) return this.renewing;
+    const token = this.session && this.session.refresh_token;
+    if (!token) { this.signOut(); return Promise.resolve(false); }
+    this.renewing = this.once('/auth/v1/token?grant_type=refresh_token', {
+      method: 'POST', auth: false, body: { refresh_token: token },
+    }).then(r => {
+      if (r.ok && r.data && r.data.access_token) { this.keep(r.data); return true; }
+      this.signOut();          // the refresh token is spent too - sign in again
+      return false;
+    }).catch(() => false)
+      .then(ok => { this.renewing = null; return ok; });
+    return this.renewing;
   },
 
   /* -------------------------------------------------------------- auth */
