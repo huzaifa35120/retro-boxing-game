@@ -92,9 +92,11 @@ const ST_COST = 0.88;          // what every punch costs to throw, x its table p
    Hold F and a punch loads up. Let it go into a jab, a cross, a hook,
    anything, and it lands far harder for far more wind. Let go of F without
    throwing and the wind-up is wasted. */
-const CHG_RATE = 1 / 90;       // a second and a half from nothing to full
-const CHG_DMG  = 1.00;         // twice the damage at the top
-const CHG_COST = 2.50;         // and three and a half times the wind
+const CHG_RATE  = 1 / 90;      // a second and a half from nothing to full
+const CHG_DMG   = 3.50;        // four and a half times the damage at the top
+const CHG_KNOCK = 2.00;        // three times the push behind it
+const CHG_STUN  = 1.20;        // and he wears it more than twice as long
+const CHG_COST  = 2.50;        // for three and a half times the wind
 
 const POWER_SCALE = 1.25;      // global lift on every punch, all classes
 

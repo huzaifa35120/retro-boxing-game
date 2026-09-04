@@ -94,10 +94,13 @@ class Boxer {
         return false;
       }
     }
-    const m = 1 + pow * CHG_DMG;
+    // damage climbs hardest, then the push, then how long he wears it
+    const md = 1 + pow * CHG_DMG;
+    const mk = 1 + pow * CHG_KNOCK;
+    const ms = 1 + pow * CHG_STUN;
     const def = pow > 0 ? Object.assign({}, base, {
-      dmg: base.dmg * m, knock: base.knock * m,
-      shake: base.shake * m, stun: Math.round(base.stun * m), sta: cost,
+      dmg: base.dmg * md, knock: base.knock * mk,
+      shake: base.shake * mk, stun: Math.round(base.stun * ms), sta: cost,
     }) : base;
     this.punch = { def, f: 0, hit: false, name, pow };
     this.chg = 0;
