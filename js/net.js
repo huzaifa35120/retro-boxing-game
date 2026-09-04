@@ -14,6 +14,8 @@ const Net = {
   board: null,            // cached leaderboard rows
   boardDivision: -1,
   boardAt: 0,
+  rooms: null,            // cached list of rooms standing open
+  roomsAt: 0,
 
   online() { return !!(SUPABASE.url && SUPABASE.anonKey); },
   signedIn() { return !!(this.session && this.session.access_token); },
@@ -229,6 +231,27 @@ const Net = {
   async pullChampion(division) {
     const rows = await this.call('/rest/v1/champions_view?select=*&division=eq.' + division);
     return rows && rows[0] ? rows[0] : null;
+  },
+
+  /* Open rooms, newest first, with the host's man named through the foreign
+     key so it is one round trip rather than one per room. */
+  pullRooms() {
+    return this.call('/rest/v1/rooms?select=id,code,division,created_at,host,' +
+                     'fighters!rooms_host_fighter_fkey(name)' +
+                     '&status=eq.open&order=created_at.desc&limit=' + ROOM_FETCH);
+  },
+
+  // fire-and-forget: the screen picks the list up on whatever frame it lands
+  wantRooms(force) {
+    if (!this.online()) return;
+    if (!force && Date.now() - this.roomsAt < ROOM_TTL) return;
+    this.roomsAt = Date.now();
+    this.pullRooms()
+      .then(rows => {
+        const me = this.userId();
+        this.rooms = (rows || []).filter(r => r.host !== me);   // not your own
+      })
+      .catch(() => { if (!this.rooms) this.rooms = []; });
   },
 
   // fire-and-forget for the UI: sets .board when it arrives

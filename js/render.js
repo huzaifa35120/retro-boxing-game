@@ -1087,47 +1087,91 @@ const WIRE_WORDS = {
   lost:    'CONNECTION LOST',
 };
 
-function drawRooms(ctx, fighter, row, code, blink) {
-  const x = 40, y = 32, w = VIEW_W - 80, h = 124;
+/* How long a room has been standing open, so a stale one is obvious. */
+function roomAge(iso) {
+  const s = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 1000));
+  if (!isFinite(s)) return '';
+  if (s >= 3600) return Math.floor(s / 3600) + 'H';
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+function drawRooms(ctx, fighter, row, code, blink, list, top) {
+  const x = 30, y = 12, w = VIEW_W - 60, h = 186;
   drawBox(ctx, x, y, w, h);
-  ctext(ctx, 'FIGHT ROOMS', CX, y + 7, DARK);
-  px(ctx, x + 10, y + 20, w - 20, 1, DARK);
+  ctext(ctx, 'FIGHT ROOMS', CX, y + 6, DARK);
+  px(ctx, x + 10, y + 18, w - 20, 1, DARK);
 
   const lx = x + 18, vx = x + 96;
 
   // who you are sending in
-  if (row === 0) text(ctx, '>', x + 8, y + 30, DARK);
-  text(ctx, 'FIGHTER', lx, y + 30, DARK);
+  if (row === 0) text(ctx, '>', x + 8, y + 26, DARK);
+  text(ctx, 'FIGHTER', lx, y + 26, DARK);
   if (fighter) {
-    swatch(ctx, vx, y + 29, 10, 8, SHORTS[fighter.shorts].trunk, SHORTS[fighter.shorts].trunkDk);
-    text(ctx, fighter.name, vx + 16, y + 30, DARK);
-    text(ctx, WEIGHTS[fighter.weight].name, vx + 16, y + 40, '#585868');
-    arrows(ctx, vx - 4, y + 30, 100, row === 0);
+    swatch(ctx, vx, y + 25, 10, 8, SHORTS[fighter.shorts].trunk, SHORTS[fighter.shorts].trunkDk);
+    text(ctx, fighter.name, vx + 16, y + 26, DARK);
+    text(ctx, WEIGHTS[fighter.weight].name, vx + 16, y + 36, '#585868');
+    arrows(ctx, vx - 4, y + 26, 100, row === 0);
   } else {
-    text(ctx, 'MAKE A FIGHTER FIRST', vx, y + 30, '#c02828');
+    text(ctx, 'MAKE A FIGHTER FIRST', vx, y + 26, '#c02828');
   }
 
-  if (row === 1) text(ctx, '>', x + 8, y + 56, DARK);
-  text(ctx, 'HOST A ROOM', lx, y + 56, DARK);
+  if (row === 1) text(ctx, '>', x + 8, y + 50, DARK);
+  text(ctx, 'HOST A ROOM', lx, y + 50, DARK);
 
-  if (row === 2) text(ctx, '>', x + 8, y + 70, DARK);
-  text(ctx, 'JOIN CODE', lx, y + 70, DARK);
-  px(ctx, vx - 2, y + 68, 40, 11, '#e8e8f0');
-  px(ctx, vx - 2, y + 79, 40, 1, '#a8a8b8');
-  text(ctx, code + (row === 2 && blink ? '_' : ''), vx + 2, y + 70, DARK);
+  if (row === 2) text(ctx, '>', x + 8, y + 62, DARK);
+  text(ctx, 'JOIN CODE', lx, y + 62, DARK);
+  px(ctx, vx - 2, y + 60, 40, 11, '#e8e8f0');
+  px(ctx, vx - 2, y + 71, 40, 1, '#a8a8b8');
+  text(ctx, code + (row === 2 && blink ? '_' : ''), vx + 2, y + 62, DARK);
 
-  px(ctx, x + 10, y + 88, w - 20, 1, DARK);
+  px(ctx, x + 10, y + 78, w - 20, 1, DARK);
+
+  // ---- the rooms standing open, five at a time --------------------------
+  const rooms = list || [], shown = Math.min(ROOM_ROWS, rooms.length);
+  text(ctx, 'OPEN ROOMS', lx, y + 84, DARK);
+  if (rooms.length > ROOM_ROWS) {
+    const tag = (top + 1) + '-' + (top + shown) + ' OF ' + rooms.length;
+    text(ctx, tag, x + w - 18 - textW(tag), y + 84, '#585868');
+  }
+
+  const ly = y + 98;
+  if (!Net.online()) {
+    text(ctx, 'SIGN IN TO SEE OPEN ROOMS', lx, ly, '#585868');
+  } else if (!Net.rooms) {
+    text(ctx, 'LOOKING...', lx, ly, '#585868');
+  } else if (!rooms.length) {
+    text(ctx, 'NOBODY IS WAITING - HOST ONE', lx, ly, '#585868');
+  } else {
+    for (let i = 0; i < shown; i++) {
+      const r = rooms[top + i], ry = ly + i * 12;
+      if (!r) break;
+      const mine = fighter && r.division === fighter.weight;   // one you can take
+      const sel = row === ROOM_FIRST + top + i;
+      const col = mine ? DARK : '#9098a8';
+      if (sel) { px(ctx, x + 6, ry - 2, w - 12, 11, '#dfe2ee'); text(ctx, '>', x + 8, ry, DARK); }
+      text(ctx, r.code, lx, ry, col);
+      const nm = (r.fighters && r.fighters.name) || '?';
+      text(ctx, nm, x + 58, ry, col);
+      text(ctx, WEIGHTS[r.division] ? WEIGHTS[r.division].short : '?', x + 148, ry, col);
+      const age = roomAge(r.created_at);
+      text(ctx, age, x + w - 22 - textW(age), ry, '#9098a8');
+    }
+    if (top > 0) text(ctx, '^', x + w - 12, ly, '#585868');
+    if (top + shown < rooms.length) text(ctx, 'v', x + w - 12, ly + (shown - 1) * 12, '#585868');
+  }
+
+  px(ctx, x + 10, y + 156, w - 20, 1, DARK);
   const msg = Wire.error || WIRE_WORDS[Wire.status] || '';
   if (Wire.room && Wire.role === 'host' && Wire.status === 'waiting') {
-    ctext(ctx, 'YOUR ROOM CODE', CX, y + 94, '#585868');
-    ctext(ctx, Wire.room.code, CX, y + 106, DARK);
+    ctext(ctx, 'YOUR ROOM CODE  ' + Wire.room.code, CX, y + 162, DARK);
   } else if (msg) {
-    ctext(ctx, msg, CX, y + 100, Wire.error ? '#c02828' : '#585868');
+    ctext(ctx, msg, CX, y + 162, Wire.error ? '#c02828' : '#585868');
   } else {
-    ctext(ctx, 'BOTH FIGHTERS MUST BE THE SAME DIVISION', CX, y + 100, '#585868');
+    ctext(ctx, 'BOTH FIGHTERS MUST BE THE SAME DIVISION', CX, y + 162, '#585868');
   }
-  ctext(ctx, 'SPACE CONFIRM    B BACK', CX, y + h + 6, DARK);
+  ctext(ctx, 'SPACE CONFIRM    ' + KEY.U + KEY.D + ' MOVE    ESC BACK', CX, y + 173, DARK);
 }
+
 
 /* Both screens show the same ring, so in an online fight the two players are
    looking at the same picture from the same side - which means one of them is
@@ -1277,6 +1321,10 @@ const RULE_PAGES = [
     'FIGHT ROOMS ARE FOR FIGHTING SOMEONE YOU',
     'KNOW: OPEN A ROOM, PASS ON THE FOUR LETTER',
     'CODE, AND THEY JOIN IT.',
+    '',
+    'EVERY ROOM STANDING OPEN IS ALSO LISTED,',
+    'FIVE AT A TIME - SCROLL DOWN THE LIST AND',
+    'TAKE ONE IN YOUR OWN DIVISION.',
     '',
     'A ROOM CLOSES WHEN YOU LEAVE IT, AND',
     'OPENING A NEW ONE CLOSES YOUR OLD ONE.',

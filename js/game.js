@@ -27,7 +27,7 @@ const game = {
   rosterSel: 0, newRow: 0, cardRow: 0, confirmDel: false, draft: null,
   mpSel: 0, mpTopic: 0,
   authRow: 0, authEmail: '', authPass: '', authMsg: '',
-  roomRow: 0, roomCode: '', roomSlot: 0,
+  roomRow: 0, roomCode: '', roomSlot: 0, roomTop: 0,
   boardDiv: DEFAULT_WEIGHT,
   rulePage: 0,
   quickOn: false, quickT: 0, quickMsg: '',
@@ -272,7 +272,9 @@ const game = {
       this.screen = 'quick';
     } else if (this.mpSel === 1) {
       Wire.reset();
-      this.roomRow = 0; this.roomCode = '';
+      this.roomRow = 0; this.roomCode = ''; this.roomTop = 0;
+      Net.rooms = null;
+      Net.wantRooms(true);
       Input.startTyping('', 'name');
       this.screen = 'rooms';
     } else {
@@ -414,13 +416,24 @@ const game = {
     }
   },
 
+  roomList() { return Net.rooms || []; },
+
   stepRooms() {
     // the fight starts the moment both sides are connected
     if (Wire.status === 'ready') { Input.stopTyping(); this.startOnlineFight(); return; }
+    // throttled inside Net, so calling it every frame costs one query a few seconds
+    if (!Wire.room) Net.wantRooms();
 
     this.roomCode = Input.takeTyped(4);
+    const list = this.roomList();
+    const last = ROOM_FIRST + list.length - 1;
     const move = (Input.any('ArrowDown', 's') ? 1 : 0) - (Input.any('ArrowUp', 'w') ? 1 : 0);
-    if (move) this.roomRow = clamp(this.roomRow + move, 0, 2);
+    if (move) this.roomRow = clamp(this.roomRow + move, 0, Math.max(2, last));
+    // keep the cursor inside the five rows on screen
+    const sel = this.roomRow - ROOM_FIRST;
+    if (sel >= 0) this.roomTop = clamp(this.roomTop, sel - ROOM_ROWS + 1, sel);
+    this.roomTop = clamp(this.roomTop, 0, Math.max(0, list.length - ROOM_ROWS));
+
     const dir = (Input.any('ArrowRight', 'd') ? 1 : 0) - (Input.any('ArrowLeft', 'a') ? 1 : 0);
     if (dir && this.roomRow === 0) this.cycleRoomFighter(dir);
 
@@ -436,6 +449,11 @@ const game = {
     else if (this.roomRow === 2) {
       if (this.roomCode.length < 4) { Wire.fail('TYPE THE FOUR LETTER CODE'); return; }
       Wire.join(this.roomCode, f, id);
+    } else if (this.roomRow >= ROOM_FIRST) {
+      const r = list[this.roomRow - ROOM_FIRST];
+      if (!r) return;
+      if (r.division !== f.weight) { Wire.fail('THAT ROOM IS A DIFFERENT DIVISION'); return; }
+      Wire.join(r.code, f, id);
     }
   },
 
@@ -957,7 +975,7 @@ const game = {
           drawSoon(ctx, MP_PAGES[0].title, MP_PAGES[0].lines); break;
         case 'rooms':
           drawRooms(ctx, this.roomFighter(), this.roomRow, this.roomCode,
-                    (this.frames >> 4) & 1); break;
+                    (this.frames >> 4) & 1, this.roomList(), this.roomTop); break;
         case 'rules':
           drawRules(ctx, this.rulePage); break;
         case 'board':

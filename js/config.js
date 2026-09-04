@@ -209,6 +209,13 @@ const USER_MIN = 3, USER_MAX = 16;      // a player's login name
 const USER_DOMAIN = '@retrobox.local';  // made up, never emailed
 const FIGHTER_SLOTS = 3;
 
+/* The open-room list is paged rather than drawn whole: five rows on screen and
+   a capped fetch behind them, so a busy night costs the same as a quiet one. */
+const ROOM_ROWS = 5;            // rows visible at once
+const ROOM_FETCH = 40;          // most rooms asked for in one go
+const ROOM_TTL = 5000;          // ms before the list is worth asking for again
+const ROOM_FIRST = 3;           // cursor rows 0-2 are the controls above the list
+
 /* ---- palettes (Game Boy Color-ish) ---- */
 const PAL_PLAYER = {
   skin:'#f8c088', skinDk:'#c07840', hair:'#402018', hairLt:'#603028',
