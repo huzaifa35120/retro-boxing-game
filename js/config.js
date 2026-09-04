@@ -51,8 +51,9 @@ const ST_SLIP = 3;             // what one slip costs
 /* A crouch cannot be lived in. Hold it and his legs tire: the crouch rises
    over the last stretch until punches start clipping him, then he is forced
    upright and has to stand a moment before he can go down again. */
-const DUCK_MAX = 120;          // two seconds is all his legs have
-const DUCK_FADE = 40;          // ...and he is visibly rising for the last third
+const DUCK_MAX = 90;           // 1.5s and his legs give out entirely
+const DUCK_FULL = 48;          // full crouch for the first 0.8s
+const DUCK_LOW = 0.53;         // how shallow it is by the time it gives out
 const DUCK_REST = 45;          // stood up this long before he may duck again
 const ST_DUCK = 0.08;          // holding a crouch is work
 

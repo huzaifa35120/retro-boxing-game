@@ -231,9 +231,10 @@ class Boxer {
       let duckTo = 0;
       if (wantDuck) {
         this.duckT++;
-        // the last stretch: his legs are going and the crouch comes up with them
-        const spent = clamp((this.duckT - (DUCK_MAX - DUCK_FADE)) / DUCK_FADE, 0, 1);
-        duckTo = 1 - 0.6 * spent;
+        // past the first stretch his legs are going and the crouch rises with
+        // them, until punches start finding him
+        const spent = clamp((this.duckT - DUCK_FULL) / (DUCK_MAX - DUCK_FULL), 0, 1);
+        duckTo = 1 - (1 - DUCK_LOW) * spent;
         if (this.duckT >= DUCK_MAX) { this.duckLock = DUCK_REST; this.duckT = 0; }
       } else if (this.duckAmt < 0.25) {
         this.duckT = 0;
