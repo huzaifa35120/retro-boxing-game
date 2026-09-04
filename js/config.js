@@ -48,14 +48,11 @@ const ST_CAP_ROUND = 20;       // what the corner gets back between rounds
 const ST_LOW = 25;             // below this the legs get heavy
 const ST_LOCK = 20;            // frames before wind starts coming back
 const ST_SLIP = 3;             // what one slip costs
-/* A crouch cannot be lived in. Hold it and his legs tire: the crouch rises
-   over the last stretch until punches start clipping him, then he is forced
-   upright and has to stand a moment before he can go down again. */
-const DUCK_MAX = 90;           // 1.5s and his legs give out entirely
-const DUCK_FULL = 48;          // full crouch for the first 0.8s
-const DUCK_LOW = 0.53;         // how shallow it is by the time it gives out
-const DUCK_REST = 45;          // stood up this long before he may duck again
-const ST_DUCK = 0.08;          // holding a crouch is work
+/* A crouch cannot be lived in: holding it burns wind, and a man with no wind
+   left has no legs to hold it with - he stands up whether he likes it or not,
+   and needs some back before he can go down again. */
+const ST_DUCK = 0.30;          // wind burnt per frame crouched
+const DUCK_ST_MIN = 20;        // wind needed to drop into a crouch
 
 /* ---- the bout ---- */
 const ROUNDS = 3;

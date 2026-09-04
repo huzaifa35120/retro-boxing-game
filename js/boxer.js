@@ -40,7 +40,7 @@ class Boxer {
     this.down = false; this.downT = 0;
     this.slipAmt = 0;                 // signed: where the head is, in world units
     this.slipF = 0; this.slipCool = 0; this.slipSign = 0; this.prevSlip = 0;
-    this.duckT = 0; this.duckLock = 0;
+    this.duckSpent = false;
     this.slipDX = 0; this.slipDY = 0; // ...and what that looks like on screen
     this.stats = Boxer.newStats();
     this.computeGloves();
@@ -225,21 +225,13 @@ class Boxer {
       this.slipAmt = this.slipSign * SLIP_MAX * clamp(amt, 0, 1);
 
       // ---- crouching (DOWN) ------------------------------------------------
-      if (this.duckLock > 0) this.duckLock--;
-      const wantDuck = intent.duck && this.duckLock <= 0 &&
+      // Run the tank dry and his legs are gone: he straightens up and stays up
+      // until he has some wind back, rather than bobbing on empty.
+      if (this.st <= 0) this.duckSpent = true;
+      else if (this.duckSpent && this.st > DUCK_ST_MIN) this.duckSpent = false;
+      const wantDuck = intent.duck && !this.duckSpent &&
                        !(this.punch && this.punch.def.level === 'rise');
-      let duckTo = 0;
-      if (wantDuck) {
-        this.duckT++;
-        // past the first stretch his legs are going and the crouch rises with
-        // them, until punches start finding him
-        const spent = clamp((this.duckT - DUCK_FULL) / (DUCK_MAX - DUCK_FULL), 0, 1);
-        duckTo = 1 - (1 - DUCK_LOW) * spent;
-        if (this.duckT >= DUCK_MAX) { this.duckLock = DUCK_REST; this.duckT = 0; }
-      } else if (this.duckAmt < 0.25) {
-        this.duckT = 0;
-      }
-      this.duckAmt = lerp(this.duckAmt, duckTo, 0.34);
+      this.duckAmt = lerp(this.duckAmt, wantDuck ? 1 : 0, 0.34);
       this.blocking = intent.block && !this.punch;
 
       if (intent.punch) this.tryPunch(intent.punch);
