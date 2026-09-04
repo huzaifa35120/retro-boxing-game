@@ -755,7 +755,7 @@ const game = {
   /* ---------------------------------------------------------------- hits */
   resolvePunch(att, def) {
     if (this.phase !== 'fight' || att.down || def.down) return;
-    const pd = att.punch.def;
+    let pd = att.punch.def;
     const g = att.gloves[pd.hand];
 
     const bodyD = Math.hypot(g.x - def.x, g.z - def.z);
@@ -784,8 +784,21 @@ const game = {
     const am = Math.hypot(ax, az) || 1;
     const frontal = (fx * ax + fz * az) / am > 0.1;
 
+    // An uppercut comes up underneath a crouching man and there is nothing he
+    // can do about it - not his guard, not his chin - and it lands three times
+    // as hard for having his head already on the way down. That is the price
+    // of living down there.
+    const caught = def.duckAmt > 0.6 && pd.level === 'rise';
+    if (caught) {
+      pd = Object.assign({}, pd, {
+        dmg: pd.dmg * DUCK_UPPER, knock: pd.knock * DUCK_UPPER,
+        shake: pd.shake * DUCK_UPPER, stun: Math.round(pd.stun * 1.5),
+      });
+    }
+
     let result;
-    if (def.duckAmt > 0.6 && pd.level === 'head') result = 'miss';
+    if (caught) result = 'clean';
+    else if (def.duckAmt > 0.6 && pd.level === 'head') result = 'miss';
     else if (def.blocking && def.hurt <= 0 && frontal) {
       // A high guard stops everything aimed at the head. Body shots and
       // uppercuts are what beat it, but the gloves still catch a fair share
@@ -828,7 +841,8 @@ const game = {
     this.spark(hx, hz, hh, heavy ? 7 : 5, heavy ? 9 : 6);
     this.burst(hx, hz, hh, heavy ? 6 : 3, '#f8f0c0');
     def.takeHit(att, pd, result);
-    this.say(result === 'graze' ? pd.name + ' THRU GUARD' : pd.name + '!');
+    this.say(caught ? pd.name + ' - CAUGHT DUCKING!'
+           : result === 'graze' ? pd.name + ' THRU GUARD' : pd.name + '!');
     if (def.hp <= 0) this.knockdown(def);
   },
 
