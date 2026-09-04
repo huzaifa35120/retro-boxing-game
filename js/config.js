@@ -169,7 +169,7 @@ const SKINS = [
 ];
 
 const SHORTS = [
-  { name:'RED',    trunk:'#e03030', trunkDk:'#901010', belt:'#f8f8f8', glove:'#e83828', gloveDk:'#901818', boot:'#f8f8f8', bootDk:'#9098a8' },
+  { name:'RED',    trunk:'#e03030', trunkDk:'#901010', belt:'#f0c020', glove:'#e83828', gloveDk:'#901818', boot:'#f8f8f8', bootDk:'#9098a8' },
   { name:'BLUE',   trunk:'#3868d8', trunkDk:'#203890', belt:'#f8f8f8', glove:'#3868d8', gloveDk:'#1c3078', boot:'#f8f8f8', bootDk:'#9098a8' },
   { name:'GREEN',  trunk:'#2f9c46', trunkDk:'#146028', belt:'#f8f8f8', glove:'#2f9c46', gloveDk:'#0e4a1e', boot:'#f8f8f8', bootDk:'#9098a8' },
   { name:'GOLD',   trunk:'#e8b022', trunkDk:'#96680c', belt:'#3a2a10', glove:'#e8b022', gloveDk:'#8a5c08', boot:'#3a2a10', bootDk:'#1a1208' },
@@ -196,7 +196,10 @@ function palFor(f) {
     hair: sk.hair, hairLt: sk.hairLt,
     trunk: sh.trunk, trunkDk: sh.trunkDk, belt: sh.belt,
     glove: sh.glove, gloveDk: sh.gloveDk,
-    boot: sh.boot, bootDk: sh.bootDk,
+    // everyone laces up the same black boots over white socks; the fighter's
+    // own colour shows in the trunks, the gloves and the stripe on the sock
+    boot: '#1b1d29', bootDk: '#0a0b12', lace: '#e8ecf8',
+    sock: '#f2f4fc', sockDk: sh.trunkDk,
     out: '#181820',
   };
 }
@@ -210,19 +213,22 @@ const FIGHTER_SLOTS = 3;
 const PAL_PLAYER = {
   skin:'#f8c088', skinDk:'#c07840', hair:'#402018', hairLt:'#603028',
   trunk:'#3868d8', trunkDk:'#203890', belt:'#f8f8f8',
-  glove:'#e83828', gloveDk:'#901818', boot:'#f8f8f8', bootDk:'#9098a8',
+  glove:'#e83828', gloveDk:'#901818',
+  boot:'#1b1d29', bootDk:'#0a0b12', lace:'#e8ecf8', sock:'#f2f4fc', sockDk:'#203890',
   skinLt:'#ffe0b8', out:'#181820',
 };
 const PAL_BOT = {
   skin:'#c08048', skinDk:'#805020', hair:'#181018', hairLt:'#382838',
   trunk:'#e03030', trunkDk:'#901010', belt:'#f8d030',
-  glove:'#303848', gloveDk:'#101018', boot:'#303848', bootDk:'#101018',
+  glove:'#303848', gloveDk:'#101018',
+  boot:'#1b1d29', bootDk:'#0a0b12', lace:'#e8ecf8', sock:'#f2f4fc', sockDk:'#901010',
   skinLt:'#e8a870', out:'#181820',
 };
 const PAL_FLASH = {
   skin:'#f8f8f8', skinDk:'#c8c8d0', hair:'#f8f8f8', hairLt:'#f8f8f8',
   trunk:'#f8f8f8', trunkDk:'#c8c8d0', belt:'#f8f8f8',
-  glove:'#f8f8f8', gloveDk:'#c8c8d0', boot:'#f8f8f8', bootDk:'#c8c8d0',
+  glove:'#f8f8f8', gloveDk:'#c8c8d0',
+  boot:'#f8f8f8', bootDk:'#c8c8d0', lace:'#f8f8f8', sock:'#f8f8f8', sockDk:'#c8c8d0',
   skinLt:'#f8f8f8', out:'#606070',
 };
 
