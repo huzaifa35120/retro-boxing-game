@@ -29,6 +29,11 @@ const Input = {
       Sfx.ensure();
       if (e.repeat) return;
       this.keys[k] = true;
+
+      /* A key that goes into a name or a room code must not also work a
+         menu - B belongs in a room code, and it was also the back key. */
+      if (this.text !== null && this.typeKey(raw)) { e.preventDefault(); return; }
+
       this.hits[k] = true;
 
       if (raw === 'ArrowLeft' || raw === 'ArrowRight') {
@@ -41,19 +46,6 @@ const Input = {
         if (this.queue.length < 2) this.queue.push(name);
       }
 
-      if (this.text !== null) {                 // naming a fighter, or signing in
-        if (raw === 'Backspace') { this.text = this.text.slice(0, -1); e.preventDefault(); }
-        else if (raw.length === 1) {
-          if (this.charset === 'name') {
-            if (/[a-zA-Z0-9]/.test(raw)) this.text += raw.toUpperCase();
-          } else if (this.charset === 'email') {
-            if (/[a-zA-Z0-9@._+-]/.test(raw)) this.text += raw.toLowerCase();
-          } else if (/[!-~]/.test(raw)) {
-            this.text += raw;                   // a password takes anything
-          }
-        }
-        return;
-      }
       if (this.onMeta && ('pmhr'.includes(k) || k === 'Escape')) this.onMeta(k);
     });
 
@@ -84,6 +76,22 @@ const Input = {
     if (this.text === null) return '';
     if (this.text.length > max) this.text = this.text.slice(0, max);
     return this.text;
+  },
+
+  /* Takes the key if the field wants it, and says so, so the caller knows
+     nothing else should act on it. */
+  typeKey(raw) {
+    if (raw === 'Backspace') { this.text = this.text.slice(0, -1); return true; }
+    if (raw.length !== 1) return false;
+    if (this.charset === 'name') {
+      if (/[a-zA-Z0-9]/.test(raw)) { this.text += raw.toUpperCase(); return true; }
+    } else if (this.charset === 'email') {
+      if (/[a-zA-Z0-9@._+-]/.test(raw)) { this.text += raw.toLowerCase(); return true; }
+    } else if (/[!-~]/.test(raw) && raw !== ' ') {
+      this.text += raw;                        // a password takes anything but space
+      return true;
+    }
+    return false;
   },
 
   down(k) { return !!this.keys[k]; },
