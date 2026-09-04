@@ -35,6 +35,7 @@ class Brain {
   constructor() { this.reset(); }
 
   reset() {
+    this.loadT = 0;
     this.timer = 40;
     this.mode = 'circle';
     this.circleDir = Math.random() < 0.5 ? 1 : -1;
@@ -49,6 +50,10 @@ class Brain {
   }
 
   pickCombo(self, foe) {
+    // plenty of wind and a bit of nerve: load the first one up
+    if (self.st > 58 && this.loadT <= 0 && Math.random() < 0.16) {
+      this.loadT = 45 + Math.floor(Math.random() * 45);
+    }
     if (foe.hurt > 2) { this.mode = 'circle'; this.timer = 14; return; }  // let them get their guard back
     let pool = COMBOS.open;
     if (self.st < 40) pool = COMBOS.light;
@@ -65,11 +70,11 @@ class Brain {
     const tx = dx / dist, tz = dz / dist;      // towards the player
     const lx = -tz * this.circleDir, lz = tx * this.circleDir;
 
-    const out = { mx: 0, mz: 0, block: false, duck: false, slip: 0, punch: null };
+    const out = { mx: 0, mz: 0, block: false, duck: false, slip: 0, punch: null, charge: false };
     this.bounce += 0.09;
 
     if (self.hurt > 0 || self.down || foe.down) {
-      this.combo.length = 0; this.slipT = 0; this.guardT = 12; return out;
+      this.combo.length = 0; this.loadT = 0; this.slipT = 0; this.guardT = 12; return out;
     }
 
     // ---- out of wind: break off and get some air back -----------------------
@@ -137,6 +142,16 @@ class Brain {
       else if (dist < 20) { out.mx = -tx; out.mz = -tz; }
       if (this.guardT === 0 && dist < 36 && Math.random() < 0.65) this.pickCombo(self, foe);
       return out;
+    }
+
+    // ---- loading one up ----------------------------------------------------
+    // He winds a power shot up now and then, holds it while he closes, and
+    // lets it go on the frame it is ready.
+    if (this.loadT > 0) {
+      out.charge = true;
+      this.loadT--;
+      if (dist > 26) { out.mx = tx * 0.7; out.mz = tz * 0.7; }
+      if (this.loadT > 0) return out;
     }
 
     // ---- run the current combo --------------------------------------------

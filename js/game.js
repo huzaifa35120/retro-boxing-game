@@ -5,7 +5,7 @@ cv.width = VIEW_W; cv.height = VIEW_H;    // the buffer size comes from config
 const ctx = cv.getContext('2d', { alpha: false });
 ctx.imageSmoothingEnabled = false;
 
-const IDLE = { mx: 0, mz: 0, block: false, duck: false, slip: 0, punch: null };
+const IDLE = { mx: 0, mz: 0, block: false, duck: false, slip: 0, punch: null, charge: false };
 
 const game = {
   player: new Boxer(-30, 26, PAL_PLAYER, 'YOU', true),
@@ -865,6 +865,7 @@ const game = {
       block: Input.down(' '),
       duck: Input.down('ArrowDown'),
       slip: (Input.down('e') ? 1 : 0) - (Input.down('q') ? 1 : 0),
+      charge: Input.down('f'),
       punch: Input.takePunch(),
     };
   },
@@ -1052,7 +1053,7 @@ const game = {
       px(ctx, 0, PANEL_Y, VIEW_W, VIEW_H - PANEL_Y, '#101828');
       drawBox(ctx, 2, PANEL_Y + 2, VIEW_W - 4, 56);
       const mc = '#181820';
-      text(ctx, 'WASD MOVE   SPACE GUARD   ' + KEY.D + ' DUCK   Q/E SLIP', 10, PANEL_Y + 8, mc);
+      text(ctx, 'WASD MOVE  SPACE GUARD  ' + KEY.D + ' DUCK  Q/E SLIP  F POWER', 10, PANEL_Y + 8, mc);
       text(ctx, KEY.L + ' JAB    ' + KEY.R + ' CROSS    SHIFT+' + KEY.L + '/' + KEY.R + ' HOOK', 10, PANEL_Y + 19, mc);
       text(ctx, KEY.U + KEY.L + '/' + KEY.U + KEY.R + ' UPPERCUT      ' + KEY.D + KEY.L + '/' + KEY.D + KEY.R + ' BODY', 10, PANEL_Y + 30, mc);
       text(ctx, 'IN A FIGHT:  P PAUSE  R RESTART  ESC LEAVE/FORFEIT', 10, PANEL_Y + 41, mc);
@@ -1081,7 +1082,7 @@ const game = {
     const AL = KEY.L, AR = KEY.R, AU = KEY.U, AD = KEY.D;
     if (this.page === 0) {
       drawBox(ctx, 2, PANEL_Y + 2, VIEW_W - 4, 56);
-      text(ctx, 'WASD MOVE   SPACE GUARD   ' + AD + ' DUCK   Q/E SLIP', 10, PANEL_Y + 8, c);
+      text(ctx, 'WASD MOVE  SPACE GUARD  ' + AD + ' DUCK  Q/E SLIP  F POWER', 10, PANEL_Y + 8, c);
       text(ctx, AL + ' JAB    ' + AR + ' CROSS    SHIFT+' + AL + '/' + AR + ' HOOK', 10, PANEL_Y + 19, c);
       text(ctx, AU + AL + '/' + AU + AR + ' UPPERCUT      ' + AD + AL + '/' + AD + AR + ' BODY', 10, PANEL_Y + 30, c);
         text(ctx, 'H GUIDE   M SOUND ' + (this.sound ? 'ON ' : 'OFF') + '  P PAUSE   ' +

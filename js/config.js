@@ -36,7 +36,7 @@ const SLIP_COOL = 8;
 const MAX_HP = 300;
 const MAX_ST = 100;
 const ST_REGEN = 0.30;         // standing still and breathing
-const ST_REGEN_MOVE = 0.05;    // moving around is free, but you get no air back
+const ST_REGEN_MOVE = 0.13;    // moving around is free, and you get some air back
 const ST_REGEN_BLOCK = 0.07;   // barely recovering behind a guard
 const GUARD_CATCH = 0.45;      // chance the guard also catches a body shot or uppercut
 const BLOCK_ST_MULT = 1.4;     // stamina a blocked punch costs, x what it cost to throw
@@ -45,7 +45,7 @@ const BLOCK_ST_MULT = 1.4;     // stamina a blocked punch costs, x what it cost 
    lowers the ceiling stamina can recover to, so a boxer who throws at
    everything has less and less to draw on as the fight goes on. */
 const ST_CAP_MIN = 45;         // it never falls below this
-const ST_CAP_DRAIN = 0.04;     // ceiling lost per point of stamina spent
+const ST_CAP_DRAIN = 0.035;    // ceiling lost per point of stamina spent
 const ST_CAP_ROUND = 20;       // what the corner gets back between rounds
 const ST_LOW = 25;             // below this the legs get heavy
 const ST_LOCK = 20;            // frames before wind starts coming back
@@ -86,6 +86,16 @@ const TKO_KD = 3;               // knockdowns in one round that end it
    the most, but have to be thrown from close range.
 --------------------------------------------------------------------------- */
 const KEY = { L: '←', R: '→', U: '↑', D: '↓' };
+const ST_COST = 0.88;          // what every punch costs to throw, x its table price
+
+/* ---- power shots ----
+   Hold F and a punch loads up. Let it go into a jab, a cross, a hook,
+   anything, and it lands far harder for far more wind. Let go of F without
+   throwing and the wind-up is wasted. */
+const CHG_RATE = 1 / 90;       // a second and a half from nothing to full
+const CHG_DMG  = 1.00;         // twice the damage at the top
+const CHG_COST = 2.50;         // and three and a half times the wind
+
 const POWER_SCALE = 1.25;      // global lift on every punch, all classes
 
 const PUNCHES = {
@@ -146,6 +156,7 @@ function makePunchTable(w) {
       knock: p.knock * w.pwr * POWER_SCALE,
       stun:  Math.round(p.stun * (1 + (w.pwr - 1) * 0.5)),
       shake: p.shake * (0.85 + 0.15 * w.pwr),
+      sta:   p.sta * ST_COST,
     });
   }
   return t;

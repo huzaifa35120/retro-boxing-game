@@ -32,6 +32,7 @@ class Boxer {
     this.hitDirX = 0; this.hitDirZ = 0;
     this.headX = 0; this.headY = 0; this.leanX = 0;
     this.walkT = 0; this.bob = 0; this.stepFrame = 0;
+    this.chg = 0;                     // how far a power shot is wound up
     this.lastPunch = '';
     this.hp = MAX_HP; this.hpShown = MAX_HP;
     this.st = MAX_ST;
@@ -76,9 +77,12 @@ class Boxer {
   }
 
   tryPunch(name) {
-    const def = this.punches[name];
-    if (this.hurt > 0 || this.down || !def) return false;
-    if (this.st < def.sta) {                // no wind left for this one
+    const base = this.punches[name];
+    if (this.hurt > 0 || this.down || !base) return false;
+    // whatever is wound up goes into this one
+    const pow = this.chg;
+    const cost = base.sta * (1 + pow * CHG_COST);
+    if (this.st < cost) {                   // no wind left for this one
       if (this.isPlayer) Sfx.tired();
       return false;
     }
@@ -90,12 +94,18 @@ class Boxer {
         return false;
       }
     }
-    this.punch = { def, f: 0, hit: false, name };
+    const m = 1 + pow * CHG_DMG;
+    const def = pow > 0 ? Object.assign({}, base, {
+      dmg: base.dmg * m, knock: base.knock * m,
+      shake: base.shake * m, stun: Math.round(base.stun * m), sta: cost,
+    }) : base;
+    this.punch = { def, f: 0, hit: false, name, pow };
+    this.chg = 0;
     this.lastPunch = def.name;
     this.stats.thrown++;
     this.blocking = false;
-    this.st -= def.sta;
-    this.burnTank(def.sta);
+    this.st -= cost;
+    this.burnTank(cost);
     this.stLock = ST_LOCK;
     Sfx.whoosh(def.kind !== 'straight');
     return true;
@@ -287,6 +297,15 @@ class Boxer {
                : (walked || slipping || crouched ? ST_REGEN_MOVE : ST_REGEN);
     }
     this.st = clamp(this.st, 0, this.stCap);
+
+    // ---- winding up a power shot -------------------------------------------
+    // Holding costs nothing but your breath: no wind comes back while you are
+    // loaded up, and letting go without throwing wastes the lot.
+    if (intent.charge && !this.down && this.hurt <= 0 && this.st > 0) {
+      this.chg = Math.min(1, this.chg + CHG_RATE);
+    } else {
+      this.chg = 0;
+    }
 
     // ---- walk bob ----------------------------------------------------------
     if (walked) {

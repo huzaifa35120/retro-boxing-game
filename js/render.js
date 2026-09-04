@@ -475,7 +475,7 @@ function drawBar(ctx, x, y, w, frac, col, bg, cap) {
 }
 
 function drawStatus(ctx, b, x, y, w, name, mine) {
-  const h = 28;
+  const h = 32;                     // room under the wind for a power shot
   drawBox(ctx, x, y, w, h);
   text(ctx, name, x + 7, y + 3, '#181820');
   if (mine) {                       // which of the two men you are boxing with
@@ -496,6 +496,14 @@ function drawStatus(ctx, b, x, y, w, name, mine) {
   text(ctx, 'ST', x + 6, y + 19, '#181820');
   drawBar(ctx, bx, y + 20, bw, sf, sf > 0.25 ? '#3878e0' : '#f88030',
           null, clamp(b.stCap / MAX_ST, 0, 1));
+
+  // a power shot winding up, under the wind it is going to cost
+  px(ctx, bx - 1, y + 26, bw + 2, 4, '#181820');
+  px(ctx, bx, y + 27, bw, 2, '#38202a');
+  if (b.chg > 0) {
+    px(ctx, bx, y + 27, Math.max(1, Math.round(bw * b.chg)), 2,
+       b.chg > 0.85 ? '#ff9020' : '#e02020');
+  }
 }
 
 /* ------------------------------------------------------------ punch guide */
@@ -1202,7 +1210,12 @@ const RULE_PAGES = [
     '',
     'THE TANK ALSO SHRINKS AS YOU THROW: THE',
     'CEILING IT RECOVERS TO FALLS ALL FIGHT.',
-    'PICK YOUR PUNCHES.',
+    '',
+    'HOLD F TO LOAD ONE UP - THE RED BAR UNDER',
+    'YOUR STAMINA. THROW ANY PUNCH WHILE STILL',
+    'HOLDING IT AND IT LANDS TWICE AS HARD FOR',
+    'THREE TIMES THE WIND. LET GO WITHOUT',
+    'THROWING AND THE WHOLE WIND-UP IS WASTED.',
   ]},
   { title: 'DEFENCE', lines: [
     'GUARD STOPS EVERY HEAD PUNCH AND CATCHES',
