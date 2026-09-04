@@ -53,6 +53,7 @@ const ST_SLIP = 3;             // what one slip costs
 /* A crouch cannot be lived in: holding it burns wind, and a man with no wind
    left has no legs to hold it with - he stands up whether he likes it or not,
    and needs some back before he can go down again. */
+const GLOVE_LIFT = 2;           // the new sprite carries his hands higher
 const ST_DUCK = 0.30;          // wind burnt per frame crouched
 const DUCK_ST_MIN = 20;        // wind needed to drop into a crouch
 

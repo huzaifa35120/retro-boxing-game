@@ -318,140 +318,85 @@ function drawArm(ctx, x0, y0, x1, y1, P) {
   }
 }
 
+/* A tapered limb from the shoulder to the wrist: thick at the top, lit
+   along the leading edge, shadowed underneath. */
+function drawLimb(ctx, x0, y0, x1, y1, P) {
+  const dx = x1 - x0, dy = y1 - y0;
+  const n = Math.max(1, Math.round(Math.hypot(dx, dy)));
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const x = Math.round(x0 + dx * t), y = Math.round(y0 + dy * t);
+    const w = t < 0.45 ? 5 : (t < 0.75 ? 4 : 3);      // bicep, forearm, wrist
+    const h = w;
+    px(ctx, x - (w >> 1), y - (h >> 1), w, h, P.skin);
+    px(ctx, x - (w >> 1), y - (h >> 1), w, 1, P.skinLt);
+    px(ctx, x - (w >> 1), y + (h >> 1), w, 1, P.skinDk);
+  }
+}
+
+function drawGlove(ctx, gx, gy, P) {
+  sprite(ctx, Math.round(gx) - 3, Math.round(gy) - 4, GLOVE, sprPal(P));
+}
+
+/* The body is the reference sheet; the head, the trunk and the legs are
+   drawn as three pieces so a crouch can fold him and a slip can take his
+   head off the line without the rest of him following. */
 function drawBody(ctx, b, P) {
   const fx = Math.round(screenX(b.x, b.z));
   const fy = Math.round(screenY(b.z)) - b.bob;
   const d  = Math.round(b.duckAmt * 8);
-  const dir = b.dir;
-  const side = dir === 'left' || dir === 'right';
-  const sgn = dir === 'right' ? 1 : -1;
-  // crouching also tips the boxer towards the opponent
+  const flip = b.dir === 'left';                    // he is drawn facing right
   const lean = Math.round(b.leanX + b.duckAmt * 3 * Math.cos(b.ang));
+  const M = sprPal(P);
+  const left = fx - SPR_CX, top = fy - (SPR_H - 1);
+  const put = (rows, x, y) => sprite(ctx, x, y, rows, M, flip);
 
-  // the shoulders sit 33px up whatever the pose, because that is where the
-  // gloves are hung from; the hips carry the rest of the proportions
-  const shoY   = fy - 33 + d;
-  const chestY = shoY + 3;
-  const waistY = fy - 21 + d;
-  const hipY   = fy - 14 + d;
-  const headT  = shoY - 11;
+  // legs and boots, and the footwork under them
+  const legs = BOXER.slice(SPR_HIP, 39);
+  put(legs, left, top + SPR_HIP);
+  const step = STEP_ROWS[b.stepFrame || 0];
+  put(step || BOXER.slice(39), left, top + 39);
 
-  const bootT = fy - 3;              // boot   bootT .. fy
-  const sockT = fy - 6;              // sock   sockT .. bootT-1
-  const legB  = bootT;               // the shin runs on under the sock
+  // trunk, folding down into the hips as he crouches
+  put(BOXER.slice(SPR_HEAD, SPR_HIP), left + lean, top + SPR_HEAD + d);
 
-  const tw = side ? 11 : 15;         // torso width
-  const tx = fx - (tw >> 1);
-
-  /* legs — feet close together in profile, a wide stagger head-on */
-  const lw = side ? 4 : 5;
-  const legs = side ? [fx - 5, fx + 1] : [fx - 7, fx + 2];
-  if (hipY < legB) {
-    for (let i = 0; i < 2; i++) {
-      const lx = legs[i], h = legB - hipY;
-      px(ctx, lx, hipY, lw, h, P.skin);
-      px(ctx, lx + (i ? lw - 1 : 0), hipY, 1, h, P.skinDk);      // outer edge
-      if (h >= 4) px(ctx, lx + 1, hipY + 1, lw - 2, 1, P.skinLt); // thigh
-    }
-  }
-
-  /* trunks — banded waist, a stripe down the near side, hem flared over the thigh */
-  const sBot = hipY + 1;
-  px(ctx, tx, waistY, tw, sBot - waistY, P.trunk);
-  px(ctx, tx - 1, sBot - 5, tw + 2, 5, P.trunk);
-  px(ctx, tx + tw - 2, waistY, 2, sBot - waistY, P.trunkDk);
-  px(ctx, tx + tw, sBot - 5, 1, 5, P.trunkDk);
-  px(ctx, fx - 1, waistY + 6, 2, sBot - waistY - 6, P.trunkDk);   // leg split
-  px(ctx, tx, waistY, tw, 2, P.belt);                             // waistband
-  px(ctx, tx, waistY + 2, tw, 1, P.trunkDk);
-  px(ctx, tx, waistY + 2, 2, sBot - waistY - 2, P.belt);          // side stripe
-
-  /* socks and boots */
-  const socks = side ? [fx - 6, fx + 1] : [fx - 8, fx + 2];
-  const boots = side ? [fx - 7, fx + 1] : [fx - 9, fx + 2];
-  const sw = side ? 5 : 6, bw = side ? 6 : 7;
-  for (const sx of socks) {
-    px(ctx, sx, sockT, sw, bootT - sockT, P.sock);
-    px(ctx, sx, sockT, sw, 1, P.sockDk);                          // striped cuff
-    px(ctx, sx, sockT + 2, sw, 1, P.sockDk);
-  }
-  for (const bx of boots) {
-    px(ctx, bx, bootT, bw, 4, P.boot);
-    px(ctx, bx + 1, bootT + 1, bw - 3, 1, P.lace);
-    px(ctx, bx + 1, bootT + 2, bw - 4, 1, P.lace);
-    px(ctx, bx, fy, bw, 1, P.bootDk);                             // sole
-  }
-
-  /* torso — lit down the near side, shaded away from the light */
-  const tX = tx + lean, th = waistY - chestY;
-  px(ctx, tX, chestY, tw, th, P.skin);
-  px(ctx, tX, chestY, 1, th, P.skinLt);
-  px(ctx, tX + tw - 2, chestY, 2, th, P.skinDk);
-  if (side) {
-    px(ctx, tX + 2, chestY + 2, 5, 3, P.skinLt);                  // one pec
-    px(ctx, tX + 2, chestY + 5, 5, 1, P.skinDk);
-    for (let r = 0; r < 3; r++) px(ctx, tX + 3, chestY + 7 + r * 2, 4, 1, P.skinDk);
-  } else {
-    px(ctx, tX + 2, chestY + 2, 5, 3, P.skinLt);                  // pecs
-    px(ctx, tX + 8, chestY + 2, 5, 3, P.skin);
-    px(ctx, tX + 2, chestY + 5, 5, 1, P.skinDk);
-    px(ctx, tX + 8, chestY + 5, 5, 1, P.skinDk);
-    px(ctx, tX + 7, chestY + 1, 1, 5, P.skinDk);                  // sternum
-    for (let r = 0; r < 3; r++) {                                 // abs
-      px(ctx, tX + 4, chestY + 6 + r * 2, 3, 1, P.skinDk);
-      px(ctx, tX + 8, chestY + 6 + r * 2, 3, 1, P.skinDk);
-    }
-  }
-
-  /* shoulders, with the deltoids standing proud of the chest */
-  px(ctx, tX - 1, shoY, tw + 2, chestY - shoY + 1, P.skin);
-  px(ctx, tX - 1, shoY, tw + 2, 1, P.skinLt);
-  px(ctx, tX - 2, shoY + 1, 2, 3, P.skin);
-  px(ctx, tX - 2, shoY + 1, 1, 1, P.skinLt);
-  px(ctx, tX + tw, shoY + 1, 2, 3, P.skinDk);
-
-  /* head */
-  const hx = fx - 5 + lean + Math.round(b.headX) + Math.round(b.slipDX);
-  const hy = headT + Math.round(b.headY) + Math.round(b.slipDY);
-  // neck, so a slipped head still reads as attached to the shoulders
-  const nx = Math.round((fx - 2 + hx + 3) / 2);
-  const ny = Math.round((shoY - 2 + hy + 8) / 2);
-  px(ctx, nx, ny, 4, 6, P.skinDk);
-  px(ctx, nx + 1, ny, 2, 6, P.skin);
-
-  const HM = { h: P.hair, H: P.hairLt, k: P.skin, d: P.skinDk, e: P.out };
-  if (dir === 'down')      sprite(ctx, hx, hy, HEAD_FRONT, HM);
-  else if (dir === 'up')   sprite(ctx, hx, hy, HEAD_BACK, HM);
-  else                     sprite(ctx, hx - (sgn > 0 ? 0 : 1), hy, HEAD_SIDE, HM, sgn < 0);
+  // head, which the slip moves on its own
+  const hx = left + lean + Math.round(b.headX) + Math.round(b.slipDX);
+  const hy = top + d + Math.round(b.headY) + Math.round(b.slipDY);
+  put(BOXER.slice(0, SPR_HEAD), hx, hy);
 }
 
-/* flat on the canvas. Drawn head-first away from whatever put them there. */
+/* Flat on the canvas. Rather than a second set of art that would never
+   match, he is the standing sprite laid on its side - feet towards
+   whatever put him there, head away from it. */
 function drawDownedBoxer(ctx, b) {
   const P = b.flash > 0 ? PAL_FLASH : b.pal;
   const fx = Math.round(screenX(b.x, b.z)), fy = Math.round(screenY(b.z));
   const s = b.hitDirX >= 0 ? 1 : -1;
-  // local x runs from the boots (-20) to the head (+21), mirrored when s < 0
-  const R = (lx, y, w, h, c) => px(ctx, s > 0 ? fx + lx : fx - lx - w, y, w, h, c);
+  const M = sprPal(P);
 
-  px(ctx, fx - 16, fy - 2, 32, 4, '#cbb894');
-  px(ctx, fx - 19, fy - 1, 38, 2, '#cbb894');
+  px(ctx, fx - 20, fy - 2, 40, 4, '#cbb894');          // the canvas takes his weight
+  px(ctx, fx - 24, fy - 1, 48, 2, '#cbb894');
 
-  R(-20, fy - 9, 6, 6, P.boot);  R(-20, fy - 4, 6, 1, P.bootDk);
-  R(-19, fy - 8, 4, 1, P.lace);  R(-19, fy - 7, 3, 1, P.lace);
-  R(-14, fy - 8, 3, 6, P.sock);  R(-14, fy - 3, 3, 1, P.sockDk);
-  R(-11, fy - 8, 7, 6, P.skin);  R(-11, fy - 3, 7, 1, P.skinDk);
-  R(-6, fy - 10, 9, 8, P.trunk); R(-6, fy - 10, 9, 2, P.belt);
-  R(2, fy - 11, 11, 9, P.skin);  R(2, fy - 11, 11, 1, P.skinLt);
-  R(2, fy - 3, 11, 1, P.skinDk);
-  R(12, fy - 12, 9, 9, P.skin);
-  R(12, fy - 12, 9, 3, P.hair);  R(13, fy - 11, 7, 1, P.hairLt);
-  // out cold
-  R(15, fy - 8, 1, 1, P.out); R(17, fy - 8, 1, 1, P.out);
-  R(16, fy - 7, 1, 1, P.out);
-  R(15, fy - 6, 1, 1, P.out); R(17, fy - 6, 1, 1, P.out);
-  R(14, fy - 4, 4, 1, P.out);
-  drawGlove(ctx, s > 0 ? fx + 9 : fx - 9, fy - 15, P);
-  drawGlove(ctx, s > 0 ? fx - 2 : fx + 2, fy - 6, P);
+  const y0 = fy - 12;
+  for (let r = 0; r < SPR_H; r++) {
+    const row = BOXER[r];
+    for (let c = 0; c < row.length; ) {
+      const ch = row[c];
+      let n = 1;
+      while (c + n < row.length && row[c + n] === ch) n++;
+      const col = M[ch];
+      if (col) {
+        // the sprite turned on its side: rows run along the canvas
+        const lx = SPR_H - 1 - r;
+        px(ctx, s > 0 ? fx - 24 + lx : fx + 23 - lx, y0 + c, 1, n, col);
+      }
+      c += n;
+    }
+  }
+  // his hands where they fell
+  drawGlove(ctx, fx + s * 4, fy - 14, P);
+  drawGlove(ctx, fx - s * 3, fy - 6, P);
 }
 
 function drawBoxer(ctx, b) {
@@ -464,19 +409,19 @@ function drawBoxer(ctx, b) {
     const g = b.gloves[hand];
     const lat = hand === 'L' ? -5 : 5;
     const gx = screenX(g.x, g.z);
-    const gy = screenY(g.z) - g.h - b.bob;
+    const gy = screenY(g.z) - g.h - b.bob - GLOVE_LIFT;
     // the shoulder has to take the same taper as the glove, or the arm
     // stretches towards the middle of the ring
     const sz = b.sz(lat);
     const sx = screenX(b.sx(lat), sz);
-    const shy = screenY(sz) - (33 - Math.round(b.duckAmt * 8)) - b.bob;
+    const shy = screenY(sz) - (SPR_SHOULDER - 4 - Math.round(b.duckAmt * 8)) - b.bob;
     parts.push({ z: g.z, gx, gy, sx: sx + b.leanX, sy: shy });
   }
   parts.sort((a, c) => a.z - c.z);
 
-  for (const p of parts) if (p.z < b.z) { drawArm(ctx, p.sx, p.sy, p.gx, p.gy, P); drawGlove(ctx, p.gx, p.gy, P); }
+  for (const p of parts) if (p.z < b.z) { drawLimb(ctx, p.sx, p.sy, p.gx, p.gy, P); drawGlove(ctx, p.gx, p.gy, P); }
   drawBody(ctx, b, P);
-  for (const p of parts) if (p.z >= b.z) { drawArm(ctx, p.sx, p.sy, p.gx, p.gy, P); drawGlove(ctx, p.gx, p.gy, P); }
+  for (const p of parts) if (p.z >= b.z) { drawLimb(ctx, p.sx, p.sy, p.gx, p.gy, P); drawGlove(ctx, p.gx, p.gy, P); }
 }
 
 /* -------------------------------------------------------------- fx / ui */

@@ -31,7 +31,7 @@ class Boxer {
     this.flash = 0;
     this.hitDirX = 0; this.hitDirZ = 0;
     this.headX = 0; this.headY = 0; this.leanX = 0;
-    this.walkT = 0; this.bob = 0;
+    this.walkT = 0; this.bob = 0; this.stepFrame = 0;
     this.lastPunch = '';
     this.hp = MAX_HP; this.hpShown = MAX_HP;
     this.st = MAX_ST;
@@ -294,8 +294,11 @@ class Boxer {
       const b = Math.sin(this.walkT) > 0.35 ? 1 : 0;
       if (b && !this.bob && game && game.nearCam(this)) Sfx.step();
       this.bob = b;
+      // the stance opens and closes as he steps rather than sliding about
+      const ph = Math.sin(this.walkT);
+      this.stepFrame = ph > 0.45 ? 1 : (ph < -0.45 ? 2 : 0);
     } else {
-      this.walkT = 0; this.bob = 0;
+      this.walkT = 0; this.bob = 0; this.stepFrame = 0;
     }
 
     // ---- advance the punch, reporting the frames that can connect ----------
