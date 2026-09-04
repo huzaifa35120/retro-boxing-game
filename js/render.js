@@ -1199,6 +1199,17 @@ function drawForfeitAsk(ctx) {
   ctext(ctx, 'Y FORFEIT    N KEEP BOXING', CX, 57, DARK);
 }
 
+/* Something threw. Say what, rather than leaving a frozen picture on screen. */
+function drawCrash(ctx, msg, n) {
+  const w = 300, y = VIEW_H - 34;
+  px(ctx, CX - w / 2, y, w, 26, '#2a0c0c');
+  px(ctx, CX - w / 2, y, w, 1, '#c02828');
+  px(ctx, CX - w / 2, y + 25, w, 1, '#c02828');
+  ctext(ctx, 'SOMETHING BROKE - RELOAD THE PAGE', CX, y + 5, '#f8a0a0');
+  ctext(ctx, msg, CX, y + 15, '#f8f8f8');
+  if (n > 1) text(ctx, 'x' + n, CX + w / 2 - 26, y + 15, '#c02828');
+}
+
 // the two machines have stopped agreeing - say so rather than hide it
 function drawDesync(ctx) {
   const w = 190;

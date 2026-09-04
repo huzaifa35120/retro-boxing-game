@@ -34,6 +34,7 @@ const game = {
   tour: null, tourDiv: DEFAULT_WEIGHT, tourNames: {}, tourMsg: '', tourAt: 0,
   fighterSlot: -1, playerName: 'YOU', botName: 'OPPONENT',
   askQuit: false, forfeit: null,        // 'a' or 'b' - which man walked out
+  crash: '', crashes: 0,                // set if a frame ever threw
 
   /* the bout ------------------------------------------------------------- */
   phase: 'fight',                 // fight | count | rest | over
@@ -1105,20 +1106,36 @@ resize();
 const STEP = 1000 / 60;
 let acc = 0, last = performance.now();
 
+/* The loop asks for the next frame whatever happened in this one. It used to
+   schedule at the end, so a single thrown error stopped the game dead and the
+   only way out was a hard refresh - which is no way to find out what broke.
+   Now the error is caught, shown on screen, and the game carries on. */
 function frame(now) {
-  let dt = now - last;
-  last = now;
-  if (dt > 250) dt = 250;
-  acc += dt;
-  let guard = 0;
-  while (acc >= STEP && guard++ < 5) {
-    if (game.paused) Input.flush();
-    else if (Wire.active) game.stepNet();
-    else game.step();
-    Input.endFrame();
-    acc -= STEP;
+  try {
+    let dt = now - last;
+    last = now;
+    if (dt > 250) dt = 250;
+    acc += dt;
+    let guard = 0;
+    while (acc >= STEP && guard++ < 5) {
+      if (game.paused) Input.flush();
+      else if (Wire.active) game.stepNet();
+      else game.step();
+      Input.endFrame();
+      acc -= STEP;
+    }
+    game.draw();
+  } catch (e) {
+    if (!game.crash) {
+      game.crash = String((e && e.message) || e).toUpperCase().slice(0, 44);
+      console.error(e);
+    }
+    game.crashes = (game.crashes || 0) + 1;
+    try { Input.endFrame(); } catch (e2) {}
   }
-  game.draw();
+  if (game.crash) {
+    try { drawCrash(ctx, game.crash, game.crashes); } catch (e3) {}
+  }
   requestAnimationFrame(frame);
 }
 
