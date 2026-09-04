@@ -46,6 +46,7 @@ const Wire = {
   frame: 0,
   mine: new Map(), theirs: new Map(),
   stalled: 0,
+  myChecks: new Map(), theirChecks: new Map(), desync: 0,
 
   /* ------------------------------------------------------------- lifecycle */
   /* A room only deserves to exist while somebody is sitting in it. Backing
@@ -68,6 +69,7 @@ const Wire = {
     this.room = null; this.myFighter = null; this.theirFighter = null;
     this.pc = null; this.dc = null; this.lastSignal = 0;
     this.frame = 0; this.mine.clear(); this.theirs.clear(); this.stalled = 0;
+    this.myChecks.clear(); this.theirChecks.clear(); this.desync = 0;
   },
 
   fail(msg) {
@@ -198,6 +200,7 @@ const Wire = {
     dc.onmessage = e => {
       const m = JSON.parse(e.data);
       if (m.t === 'i') this.theirs.set(m.f, m.i);
+      else if (m.t === 'c') { this.theirChecks.set(m.f, m.s); this.compare(m.f); }
     };
   },
 
@@ -239,6 +242,25 @@ const Wire = {
   },
 
   ready(frame) { return this.mine.has(frame) && this.theirs.has(frame); },
+
+  /* Both sides send a number standing for the whole fight every so often. If
+     they ever disagree the two simulations have come apart, and saying so is
+     far better than quietly playing two different fights. */
+  check(frame, sum) {
+    this.myChecks.set(frame, sum);
+    if (this.dc && this.dc.readyState === 'open') {
+      this.dc.send(JSON.stringify({ t: 'c', f: frame, s: sum }));
+    }
+    this.compare(frame);
+  },
+
+  compare(frame) {
+    const mine = this.myChecks.get(frame), theirs = this.theirChecks.get(frame);
+    if (mine === undefined || theirs === undefined) return;
+    if (mine !== theirs && !this.desync) this.desync = frame;
+    this.myChecks.delete(frame);
+    this.theirChecks.delete(frame);
+  },
 
   // host drives boxer A, guest drives boxer B - the same on both machines
   intents(frame) {

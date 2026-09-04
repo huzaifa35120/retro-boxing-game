@@ -36,6 +36,7 @@ const game = {
 
   /* the bout ------------------------------------------------------------- */
   phase: 'fight',                 // fight | count | rest | over
+  simFrame: 0,                    // fight steps only - shared by both machines
   round: 1,
   roundT: ROUND_FRAMES,
   restT: 0, countT: 0, countN: 0, overT: 0,
@@ -98,7 +99,7 @@ const game = {
   },
 
   reportOnline() {
-    if (!Wire.active || !Wire.room) return;
+    if (!Wire.active || !Wire.room || Wire.desync) return;
     let winner = null, method = 'decision';
     if (this.stoppage) {
       method = 'tko';
@@ -486,6 +487,7 @@ const game = {
     this.sparks.length = 0; this.bits.length = 0;
     this.shake = 0; this.freeze = 0;
     this.phase = 'fight'; this.round = 1; this.roundT = ROUND_FRAMES;
+    this.simFrame = 0;
     this.restT = 0; this.countT = 0; this.overT = 0; this.downed = null;
     this.cards.length = 0;
     this.jtot = [[0, 0], [0, 0], [0, 0]];
@@ -709,6 +711,18 @@ const game = {
 
   confirmPressed() { return Input.down(' ') || Input.down('Enter'); },
 
+  /* A small number standing for the whole fight, so both machines can check
+     they still agree. */
+  checksum() {
+    const p = this.player, b = this.bot;
+    const v = [this.phase === 'fight' ? 1 : 2, this.round, this.roundT, this.simFrame,
+               p.x, p.z, p.hp, p.st, b.x, b.z, b.hp, b.st,
+               p.stats.thrown, p.stats.landed, b.stats.thrown, b.stats.landed];
+    let h = 0;
+    for (const n of v) h = (h * 31 + Math.round(n * 16)) | 0;
+    return h >>> 0;
+  },
+
   readIntent() {
     return {
       mx: (Input.down('d') ? 1 : 0) - (Input.down('a') ? 1 : 0),
@@ -730,6 +744,7 @@ const game = {
     Wire.stalled = 0;
     this.step(Wire.intents(f));
     Wire.frame++;
+    if (f % 30 === 0) Wire.check(f, this.checksum());
   },
 
   /* ---------------------------------------------------------------- step */
@@ -795,9 +810,11 @@ const game = {
     const bi = fighting ? (net ? (net.b || IDLE) : this.brain.think(this.bot, this.player)) : IDLE;
 
     // Whoever updates first resolves his punch first, and a landed punch
-    // cancels the other man's. Alternate, or the player would win every
-    // simultaneous exchange in the fight.
-    if (this.frames & 1) {
+    // cancels the other man's, so the two machines must agree on the order.
+    // simFrame counts only fight steps and is therefore identical on both;
+    // this.frames counts menu frames too and is not.
+    this.simFrame++;
+    if (this.simFrame & 1) {
       this.bot.update(bi, this.player, this);
       this.player.update(pi, this.bot, this);
     } else {
@@ -924,7 +941,8 @@ const game = {
       text(ctx, 'H FOR CONTROLS AND PUNCH GUIDE', 8, PANEL_Y + 20, '#8890a8');
     }
 
-    if (Wire.active && Wire.stalled > 0) drawStall(ctx, Wire.stalled);
+    if (Wire.active && Wire.desync) drawDesync(ctx);
+    else if (Wire.active && Wire.stalled > 0) drawStall(ctx, Wire.stalled);
 
     if (this.phase === 'count' && this.downed) {
       drawCount(ctx, this.downed.isPlayer ? 'YOU' : 'OPPONENT', this.countN);

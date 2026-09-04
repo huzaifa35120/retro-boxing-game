@@ -1011,6 +1011,14 @@ function drawRooms(ctx, fighter, row, code, blink) {
   ctext(ctx, 'SPACE CONFIRM    B BACK', CX, y + h + 6, DARK);
 }
 
+// the two machines have stopped agreeing - say so rather than hide it
+function drawDesync(ctx) {
+  const w = 190;
+  drawBox(ctx, CX - w / 2, 31, w, 28);
+  ctext(ctx, 'THE TWO SCREENS HAVE COME APART', CX, 36, '#c02828');
+  ctext(ctx, 'THIS FIGHT WILL NOT COUNT - ESC', CX, 46, DARK);
+}
+
 // shown over the ring while the two simulations are waiting on each other
 function drawStall(ctx, frames) {
   if (frames < 30) return;
