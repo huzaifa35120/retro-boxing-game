@@ -33,6 +33,7 @@ const game = {
   quickOn: false, quickT: 0, quickMsg: '',
   tour: null, tourDiv: DEFAULT_WEIGHT, tourNames: {}, tourMsg: '', tourAt: 0,
   fighterSlot: -1, playerName: 'YOU', botName: 'OPPONENT',
+  askQuit: false, forfeit: null,        // 'a' or 'b' - which man walked out
 
   /* the bout ------------------------------------------------------------- */
   phase: 'fight',                 // fight | count | rest | over
@@ -115,6 +116,38 @@ const game = {
     Net.call('/rest/v1/rpc/report_match', {
       method: 'POST',
       body: { p_room: Wire.room.id, p_winner: winner, p_method: method, p_rounds: this.cards },
+    }).catch(e => { Net.saveError = 'RESULT NOT SAVED: ' + e.message; });
+  },
+
+  /* Quitting an online fight is a result, not an exit: the man who walks out
+     takes the loss and his opponent takes the win. The peer is told directly
+     so both screens land on the same verdict. */
+  forfeitNow() {
+    if (!Wire.active || this.forfeit || this.phase === 'over') { this.askQuit = false; return; }
+    const side = Wire.role === 'guest' ? 'b' : 'a';
+    Wire.sendQuit(side);
+    this.finishForfeit(side);
+  },
+
+  finishForfeit(side) {
+    this.forfeit = side;
+    this.askQuit = false;
+    this.phase = 'over';
+    this.overT = 60;
+    const nm = this.boutNames();
+    this.verdict = 'FORFEIT';
+    this.winnerText = 'WINNER: ' + (side === 'a' ? nm[1] : nm[0]);
+    this.reportForfeit(side);
+  },
+
+  /* Reported whatever the checksums say: the outcome comes from who quit, not
+     from a simulation the two machines have to agree on. */
+  reportForfeit(side) {
+    if (!Wire.active || !Wire.room) return;
+    const winner = side === 'a' ? Wire.room.guest_fighter : Wire.room.host_fighter;
+    Net.call('/rest/v1/rpc/report_match', {
+      method: 'POST',
+      body: { p_room: Wire.room.id, p_winner: winner, p_method: 'forfeit', p_rounds: this.cards },
     }).catch(e => { Net.saveError = 'RESULT NOT SAVED: ' + e.message; });
   },
 
@@ -494,6 +527,7 @@ const game = {
     this.jtot = [[0, 0], [0, 0], [0, 0]];
     this.tally = { a: Boxer.newStats(), b: Boxer.newStats() };
     this.stoppage = null; this.verdict = ''; this.winnerText = '';
+    this.askQuit = false; this.forfeit = null;
     this.banner = 'ROUND 1'; this.bannerT = 80;
     Sfx.bell();
   },
@@ -545,10 +579,11 @@ const game = {
     Profile.recordFight(this.fighterSlot, res, method, false);   // training only
   },
 
-  /* A stoppage ends the fight mid-round, so fold that round's work in too. */
+  /* A stoppage or a forfeit ends the fight mid-round, so fold that round's
+     work in too. */
   finalTally() {
     const t = { a: Object.assign({}, this.tally.a), b: Object.assign({}, this.tally.b) };
-    if (this.stoppage) {
+    if (this.stoppage || this.forfeit) {
       this.addStats(t.a, this.player.stats);
       this.addStats(t.b, this.bot.stats);
     }
@@ -761,6 +796,9 @@ const game = {
      once both sides' inputs for it are in hand. */
   stepNet() {
     if (this.screen !== 'fight') { this.step(); return; }
+    if (Wire.theirQuit && !this.forfeit) this.finishForfeit(Wire.theirQuit);
+    // the bout is decided, so there is nothing left to keep the two in step
+    if (this.forfeit) { this.step(); return; }
     const f = Wire.frame;
     if (!Wire.mine.has(f + Wire.DELAY)) Wire.sendInput(f + Wire.DELAY, this.readIntent());
     if (!Wire.ready(f)) { Wire.stalled++; return; }
@@ -812,7 +850,7 @@ const game = {
     }
     if (this.phase === 'over') {
       if (this.overT > 0) this.overT--;
-      else if (this.confirmPressed()) this.toMenu();
+      else if (this.confirmPressed()) { if (this.forfeit) Wire.reset(); this.toMenu(); }
       return;
     }
 
@@ -939,7 +977,7 @@ const game = {
       text(ctx, 'WASD MOVE   SPACE GUARD   ' + KEY.D + ' DUCK   Q/E SLIP', 10, PANEL_Y + 8, mc);
       text(ctx, KEY.L + ' JAB    ' + KEY.R + ' CROSS    SHIFT+' + KEY.L + '/' + KEY.R + ' HOOK', 10, PANEL_Y + 19, mc);
       text(ctx, KEY.U + KEY.L + '/' + KEY.U + KEY.R + ' UPPERCUT      ' + KEY.D + KEY.L + '/' + KEY.D + KEY.R + ' BODY', 10, PANEL_Y + 30, mc);
-      text(ctx, 'IN A FIGHT:  P PAUSE   R RESTART   ESC MENU', 10, PANEL_Y + 41, mc);
+      text(ctx, 'IN A FIGHT:  P PAUSE  R RESTART  ESC LEAVE/FORFEIT', 10, PANEL_Y + 41, mc);
       return;
     }
 
@@ -968,7 +1006,8 @@ const game = {
       text(ctx, 'WASD MOVE   SPACE GUARD   ' + AD + ' DUCK   Q/E SLIP', 10, PANEL_Y + 8, c);
       text(ctx, AL + ' JAB    ' + AR + ' CROSS    SHIFT+' + AL + '/' + AR + ' HOOK', 10, PANEL_Y + 19, c);
       text(ctx, AU + AL + '/' + AU + AR + ' UPPERCUT      ' + AD + AL + '/' + AD + AR + ' BODY', 10, PANEL_Y + 30, c);
-      text(ctx, 'H GUIDE   M SOUND ' + (this.sound ? 'ON ' : 'OFF') + '  P PAUSE   R RESET', 10, PANEL_Y + 41, c);
+        text(ctx, 'H GUIDE   M SOUND ' + (this.sound ? 'ON ' : 'OFF') + '  P PAUSE   ' +
+                (Wire.active ? 'ESC FORFEIT' : 'R RESET'), 10, PANEL_Y + 41, c);
     } else if (this.page === 1) {
       drawBox(ctx, 2, PANEL_Y + 2, VIEW_W - 4, 56);
       drawGuide(ctx, 10, PANEL_Y + 8, VIEW_W - 20);
@@ -976,7 +1015,8 @@ const game = {
       text(ctx, 'H FOR CONTROLS AND PUNCH GUIDE', 8, PANEL_Y + 20, '#8890a8');
     }
 
-    if (Wire.active && Wire.desync) drawDesync(ctx);
+    if (this.askQuit) drawForfeitAsk(ctx);
+    else if (Wire.active && Wire.desync) drawDesync(ctx);
     else if (Wire.active && Wire.stalled > 0) drawStall(ctx, Wire.stalled);
 
     if (this.phase === 'count' && this.downed) {
@@ -1014,8 +1054,25 @@ Input.onMeta = k => {
   else if (k === 'm') { game.sound = Sfx.toggleMute(); }
   else if (k === 'h') { game.page = (game.page + 1) % 3; }
   else if (k === 'r') { if (!Wire.active) game.reset(); }
-  else if (k === 'Escape') { Wire.reset(); game.toMenu(); }
+  else if (game.askQuit && (k === 'y' || k === 'Escape')) {
+    if (k === 'y') game.forfeitNow(); else game.askQuit = false;
+  }
+  else if (game.askQuit && k === 'n') { game.askQuit = false; }
+  else if (k === 'Escape') {
+    // online you cannot simply walk out mid-fight; you forfeit or you box on
+    if (Wire.active && !game.forfeit && game.phase !== 'over') game.askQuit = true;
+    else { Wire.reset(); game.toMenu(); }
+  }
 };
+
+/* A refresh or a closed tab is the one exit the game cannot gate, so at least
+   make the browser ask. */
+window.addEventListener('beforeunload', e => {
+  if (Wire.active && game.screen === 'fight' && game.phase !== 'over' && !game.forfeit) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 function resize() {
   const raw = Math.min((window.innerWidth - 20) / VIEW_W,

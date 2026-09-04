@@ -47,6 +47,7 @@ const Wire = {
   mine: new Map(), theirs: new Map(),
   stalled: 0,
   myChecks: new Map(), theirChecks: new Map(), desync: 0,
+  theirQuit: null,          // set when the opponent forfeits
 
   /* ------------------------------------------------------------- lifecycle */
   /* A room only deserves to exist while somebody is sitting in it. Backing
@@ -70,6 +71,7 @@ const Wire = {
     this.pc = null; this.dc = null; this.lastSignal = 0;
     this.frame = 0; this.mine.clear(); this.theirs.clear(); this.stalled = 0;
     this.myChecks.clear(); this.theirChecks.clear(); this.desync = 0;
+    this.theirQuit = null;
   },
 
   fail(msg) {
@@ -201,6 +203,7 @@ const Wire = {
       const m = JSON.parse(e.data);
       if (m.t === 'i') this.theirs.set(m.f, m.i);
       else if (m.t === 'c') { this.theirChecks.set(m.f, m.s); this.compare(m.f); }
+      else if (m.t === 'ff') this.theirQuit = m.q === 'b' ? 'b' : 'a';
     };
   },
 
@@ -234,6 +237,14 @@ const Wire = {
   },
 
   /* ------------------------------------------------------------- the fight */
+  /* Out of band, and deliberately so: a forfeit is not a move in the fight,
+     it ends it, so it does not belong in the lockstep input stream. */
+  sendQuit(side) {
+    if (this.dc && this.dc.readyState === 'open') {
+      try { this.dc.send(JSON.stringify({ t: 'ff', q: side })); } catch (e) {}
+    }
+  },
+
   sendInput(frame, intent) {
     this.mine.set(frame, intent);
     if (this.dc && this.dc.readyState === 'open') {

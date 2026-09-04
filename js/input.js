@@ -46,7 +46,8 @@ const Input = {
         if (this.queue.length < 2) this.queue.push(name);
       }
 
-      if (this.onMeta && ('pmhr'.includes(k) || k === 'Escape')) this.onMeta(k);
+      if (this.onMeta && ('pmhr'.includes(k) || k === 'Escape' ||
+                              k === 'y' || k === 'n')) this.onMeta(k);
     });
 
     window.addEventListener('keyup', e => {

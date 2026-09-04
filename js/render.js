@@ -1145,6 +1145,16 @@ function drawYouTag(ctx, b) {
   px(ctx, x, y + 11, 1, 1, D);
 }
 
+// Leaving a live fight has to be a decision, not a stray key. The clock keeps
+// running underneath this box - you do not get to stop the fight to think.
+function drawForfeitAsk(ctx) {
+  const w = 208;
+  drawBox(ctx, CX - w / 2, 28, w, 40);
+  ctext(ctx, 'FORFEIT THE FIGHT?', CX, 34, '#c02828');
+  ctext(ctx, 'IT GOES DOWN AS A LOSS FOR YOU', CX, 45, DARK);
+  ctext(ctx, 'Y FORFEIT    N KEEP BOXING', CX, 57, DARK);
+}
+
 // the two machines have stopped agreeing - say so rather than hide it
 function drawDesync(ctx) {
   const w = 190;
@@ -1272,6 +1282,24 @@ const RULE_PAGES = [
     'OPENING A NEW ONE CLOSES YOUR OLD ONE.',
     '',
     'BOTH FIGHTERS MUST BE THE SAME DIVISION.',
+  ]},
+  { title: 'LEAVING A FIGHT', lines: [
+    'IN TRAINING YOU CAN LEAVE WHENEVER YOU',
+    'LIKE. NOTHING IS RECORDED.',
+    '',
+    'ONLINE YOU CANNOT WALK OUT OF A FIGHT.',
+    'ESC ASKS WHETHER YOU WANT TO FORFEIT,',
+    'AND THE FIGHT CARRIES ON WHILE YOU',
+    'DECIDE - IT IS NOT A PAUSE.',
+    '',
+    'A FORFEIT IS A LOSS FOR THE MAN WHO',
+    'QUITS AND A WIN FOR HIS OPPONENT, AND',
+    'GOES ON BOTH RECORDS THE SAME AS ANY',
+    'OTHER RESULT. IT IS NOT SCORED AS A KO.',
+    '',
+    'IF YOU CLOSE THE PAGE MID-FIGHT THE',
+    'CONNECTION DROPS AND NO RESULT IS',
+    'SAVED FOR EITHER MAN.',
   ]}
 ];
 
@@ -1375,13 +1403,19 @@ function drawFinal(ctx, jtot, verdict, winner, names, tally) {
   const cA = x + 250, cB = x + 330;
   px(ctx, 0, 0, VIEW_W, VIEW_H, '#0a0e18');
   drawBox(ctx, x, y, w, h);
-  ctext(ctx, 'FINAL DECISION', CX, y + 5, DARK);
+  // nobody quits on the cards, so a forfeit does not get read off them
+  const walked = verdict === 'FORFEIT';
+  ctext(ctx, walked ? 'FINAL RESULT' : 'FINAL DECISION', CX, y + 5, DARK);
 
-  jtot.forEach((sc, i) => {
-    const ry = y + 22 + i * 11;
-    text(ctx, 'JUDGE ' + (i + 1), x + 40, ry, DARK);
-    text(ctx, String(sc[0]).padStart(3) + '  -' + String(sc[1]).padStart(3), x + 150, ry, DARK);
-  });
+  if (walked) {
+    ctext(ctx, 'THE FIGHT WAS NOT SCORED', CX, y + 33, '#585868');
+  } else {
+    jtot.forEach((sc, i) => {
+      const ry = y + 22 + i * 11;
+      text(ctx, 'JUDGE ' + (i + 1), x + 40, ry, DARK);
+      text(ctx, String(sc[0]).padStart(3) + '  -' + String(sc[1]).padStart(3), x + 150, ry, DARK);
+    });
+  }
 
   px(ctx, x + 10, y + 70, w - 20, 1, DARK);
   ctext(ctx, verdict, CX, y + 76, DARK);
