@@ -420,3 +420,37 @@ class Boxer {
     }
   }
 }
+
+/* The heavy bag. It is not a fighter: it has no wind, no chin and no
+   intentions. It hangs, it takes what you give it, and it swings. */
+class Bag {
+  constructor() { this.reset(); }
+
+  reset() {
+    this.isBag = true;
+    this.down = false;
+    this.x = 0; this.z = -18;          // where the chain is bolted
+    this.sx = 0; this.sz = 0;          // how far it has swung off that
+    this.vx = 0; this.vz = 0;
+    this.spin = 0;
+    this.thrown = 0; this.landed = 0; this.hardest = 0;
+    this.head = 0; this.body = 0;
+  }
+
+  // where it actually is this frame, which is what a glove has to find
+  at() { return { x: this.x + this.sx, z: this.z + this.sz }; }
+
+  update() {
+    this.vx += -this.sx * 0.055;       // the chain pulls it back
+    this.vz += -this.sz * 0.055;
+    this.vx *= 0.93; this.vz *= 0.93;
+    this.sx += this.vx; this.sz += this.vz;
+    if (this.spin > 0) this.spin--;
+  }
+
+  take(dirX, dirZ, power) {
+    this.vx += dirX * power;
+    this.vz += dirZ * power;
+    this.spin = 8;
+  }
+}

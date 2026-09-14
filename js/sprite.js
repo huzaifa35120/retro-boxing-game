@@ -118,3 +118,49 @@ function sprPal(P) {
     t: P.trunk, u: P.trunkDk, b: P.belt, o: P.boot,
   };
 }
+
+/* The heavy bag. Hangs from a chain with its base off the canvas, so head
+   punches and body shots both find something to hit.
+   c chain  d cap and shadow  s strap  l leather  L the lit side          */
+const BAG_W = 12, BAG_H = 34, BAG_CX = 6, BAG_LIFT = 16;
+
+const BAG = [
+  '.....cc.....',
+  '.....cc.....',
+  '.....cc.....',
+  '..dddddddd..',
+  '.ssssssssss.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.ssssssssss.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.ssssssssss.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.ssssssssss.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '.lLllllllld.',
+  '..dddddddd..',
+  '..dddddddd..',
+  '...dddddd...',
+];
+
+const BAG_PAL = {
+  c: '#9098a8', d: '#4a1c10', s: '#2e1209', l: '#8a3a22', L: '#b4603a',
+};

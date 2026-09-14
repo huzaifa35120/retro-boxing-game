@@ -63,6 +63,9 @@ const STEPIN_FRAMES = 8;
 const STEPIN_COOL = 26;
 const ST_STEPIN = 3;
 
+const BAG_HIT_R = 15;          // how close a glove has to be to find the bag
+const BAG_SEP = 17;            // and how close he can stand to it
+
 const DUCK_UPPER = 3.0;        // an uppercut on a crouching man, x its damage
 const DUCK_ST_MIN = 20;        // wind needed to drop into a crouch
 

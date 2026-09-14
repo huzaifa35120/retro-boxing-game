@@ -399,6 +399,19 @@ function drawDownedBoxer(ctx, b) {
   drawGlove(ctx, fx - s * 3, fy - 6, P);
 }
 
+/* The bag, hung on a chain that runs up out of the picture. */
+function drawBag(ctx, bag) {
+  const at = bag.at();
+  const fx = Math.round(screenX(at.x, at.z));
+  const fy = Math.round(screenY(at.z));
+  const top = fy - BAG_LIFT - BAG_H;
+
+  drawShadow(ctx, { x: at.x, z: at.z, duckAmt: 0 });
+  px(ctx, fx - 1, 0, 2, top + 3, '#6a7286');          // the chain, all the way up
+  px(ctx, fx - 1, 0, 1, top + 3, '#9098a8');
+  sprite(ctx, fx - BAG_CX, top, BAG, BAG_PAL);
+}
+
 function drawBoxer(ctx, b) {
   if (b.down) { drawDownedBoxer(ctx, b); return; }
   const P = b.flash > 0 ? PAL_FLASH : b.pal;
@@ -617,6 +630,41 @@ function drawCount(ctx, name, n) {
 }
 
 /* ------------------------------------------------------------- menu + guide */
+
+function drawTraining(ctx, sel) {
+  const w = 210, x = Math.round(CX - w / 2), y = 44, h = 104;
+  drawBox(ctx, x, y, w, h);
+  ctext(ctx, 'TRAINING', CX, y + 7, DARK);
+  px(ctx, x + 10, y + 20, w - 20, 1, DARK);
+
+  const rows = [
+    ['SPARRING',  'THREE ROUNDS WITH THE GYM'],
+    ['HEAVY BAG', 'NOBODY HITS BACK - JUST WORK'],
+  ];
+  rows.forEach(([name, blurb], i) => {
+    const ry = y + 30 + i * 30;
+    if (i === sel) text(ctx, '>', x + 14, ry, DARK);
+    text(ctx, name, x + 26, ry, DARK);
+    text(ctx, blurb, x + 26, ry + 11, '#585868');
+  });
+  ctext(ctx, 'W/S MOVE   SPACE SELECT   B BACK', CX, y + h - 12, DARK);
+}
+
+/* What he has put into the bag so far. */
+function drawBagCard(ctx, bag, x, y, w) {
+  const h = 32;
+  drawBox(ctx, x, y, w, h);
+  text(ctx, 'BAG WORK', x + 7, y + 3, DARK);
+  const rows = [
+    ['THROWN', bag.thrown], ['LANDED', bag.landed],
+    ['HEAD', bag.head], ['BODY', bag.body],
+  ];
+  rows.forEach(([lab, v], i) => {
+    const cx2 = x + 7 + (i % 2) * 84, cy = y + 13 + (i >> 1) * 9;
+    text(ctx, lab, cx2, cy, '#585868');
+    text(ctx, String(v), cx2 + 54, cy, DARK);
+  });
+}
 
 function drawMenu(ctx, items, idx, w) {
   drawBox(ctx, Math.round(CX - 86), 20, 172, 20);

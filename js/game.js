@@ -29,6 +29,7 @@ const game = {
   mpSel: 0, mpTopic: 0,
   authRow: 0, authEmail: '', authPass: '', authMsg: '',
   roomRow: 0, roomCode: '', roomSlot: 0, roomTop: 0,
+  trainSel: 0, bagMode: false, bag: new Bag(),
   boardDiv: DEFAULT_WEIGHT,
   rulePage: 0,
   quickOn: false, quickT: 0, quickMsg: '',
@@ -61,7 +62,7 @@ const game = {
   },
 
   menuItems() {
-    return ['TRAINING FIGHT', 'MY FIGHTERS', 'MULTIPLAYER', 'GUIDE', 'RULES',
+    return ['TRAINING', 'MY FIGHTERS', 'MULTIPLAYER', 'GUIDE', 'RULES',
             'SOUND: ' + (this.sound ? 'ON' : 'OFF')];
   },
 
@@ -72,6 +73,7 @@ const game = {
 
   toMenu() {
     this.screen = 'menu';
+    this.bagMode = false;
     this.phase = 'fight';
     this.player.reset(); this.bot.reset(); this.brain.reset();
     this.applyWeight();
@@ -173,7 +175,7 @@ const game = {
     if (!Input.any(' ', 'Enter')) return;
     Input.flush();
     switch (this.menuIdx) {
-      case 0: this.weightPick = this.weightIdx; this.screen = 'weight'; break;
+      case 0: this.trainSel = 0; this.screen = 'training'; break;
       case 1: this.rosterSel = 0; this.screen = 'roster'; break;
       case 2: this.mpSel = 0; this.screen = 'multiplayer'; break;
       case 3: this.guidePage = 0; this.screen = 'guide'; break;
@@ -182,13 +184,64 @@ const game = {
     }
   },
 
+  stepTraining() {
+    if (Input.any('w', 'ArrowUp')) this.trainSel = (this.trainSel + 1) % 2;
+    if (Input.any('s', 'ArrowDown')) this.trainSel = (this.trainSel + 1) % 2;
+    if (Input.any('b', 'Escape', 'Backspace')) { this.screen = 'menu'; return; }
+    if (Input.any(' ', 'Enter')) {
+      Input.flush();
+      this.bagMode = this.trainSel === 1;
+      this.weightPick = this.weightIdx;
+      this.screen = 'weight';
+    }
+  },
+
+  /* The bag is not a fight: no rounds, no clock, no man opposite. He works
+     it until he has had enough. */
+  startBag() {
+    this.bagMode = true;
+    this.fighterSlot = -1;
+    const fs = Profile.fighters();
+    const slot = fs.findIndex(f => f && f.weight === this.weightIdx);
+    const f = slot >= 0 ? fs[slot] : null;
+    this.playerName = f ? f.name : 'YOU';
+    this.screen = 'fight';
+    this.reset();
+    this.player.pal = f ? palFor(f) : PAL_PLAYER;
+    this.player.x = 0; this.player.z = 14;
+    this.bag.reset();
+    this.banner = 'BAG WORK'; this.bannerT = 70;
+  },
+
+  /* the player, the bag, and whatever is flying off it */
+  stepBag() {
+    const before = this.player.stats.thrown;
+    this.player.update(this.readIntent(), this.bag, this);
+    this.bag.thrown += this.player.stats.thrown - before;
+    this.bag.update();
+
+    // he cannot walk through it
+    const at = this.bag.at();
+    const dx = this.player.x - at.x, dz = this.player.z - at.z;
+    const d = Math.hypot(dx, dz);
+    if (d < BAG_SEP && d > 0.0001) {
+      const push = BAG_SEP - d;
+      this.player.x += (dx / d) * push;
+      this.player.z += (dz / d) * push;
+    }
+    const lx = RING_HX - PAD_X, lz = RING_HZ - PAD_Z;
+    this.player.x = clamp(this.player.x, -lx, lx);
+    this.player.z = clamp(this.player.z, -lz, lz);
+    this.stepFx();
+  },
+
   stepWeight() {
     if (Input.any('w', 'ArrowUp')) this.weightPick = (this.weightPick + WEIGHTS.length - 1) % WEIGHTS.length;
     if (Input.any('s', 'ArrowDown')) this.weightPick = (this.weightPick + 1) % WEIGHTS.length;
     if (Input.any(' ', 'Enter')) {
       this.weightIdx = this.weightPick;
       this.applyWeight();
-      this.startFight();
+      if (this.bagMode) this.startBag(); else this.startFight();
     } else if (Input.any('b', 'Escape', 'Backspace')) {
       this.screen = 'menu';
     }
@@ -606,6 +659,7 @@ const game = {
     this.tally = { a: Boxer.newStats(), b: Boxer.newStats() };
     this.stoppage = null; this.verdict = ''; this.winnerText = '';
     this.askQuit = false; this.forfeit = null;
+    if (this.bagMode) this.bag.reset();     // R starts the session over
     this.banner = 'ROUND 1'; this.bannerT = 80;
     Sfx.bell();
   },
@@ -755,6 +809,7 @@ const game = {
 
   /* ---------------------------------------------------------------- hits */
   resolvePunch(att, def) {
+    if (def && def.isBag) return this.resolveBag(att, def);
     if (this.phase !== 'fight' || att.down || def.down) return;
     let pd = att.punch.def;
     const g = att.gloves[pd.hand];
@@ -847,6 +902,31 @@ const game = {
     if (def.hp <= 0) this.knockdown(def);
   },
 
+  /* The bag gives back exactly what a man does - the same crack, the same
+     jolt through the screen - it just cannot hit you back. */
+  resolveBag(att, bag) {
+    const pd = att.punch.def;
+    const g = att.gloves[pd.hand];
+    const at = bag.at();
+    const d = Math.hypot(g.x - at.x, g.z - at.z);
+    if (d > BAG_HIT_R) return;
+
+    att.punch.hit = true;
+    att.stats.landed++;
+    att.stats.dmg += pd.dmg;
+    bag.landed++;
+    bag.hardest = Math.max(bag.hardest, pd.dmg);
+    if (pd.level === 'body') { att.stats.body++; bag.body++; Sfx.hitBody(1); }
+    else { att.stats.head++; bag.head++; Sfx.hitHead(1); }
+
+    this.shake = Math.max(this.shake, pd.shake);
+    this.freeze = Math.max(this.freeze, 6);
+    this.spark(at.x, at.z, g.h, 7, 9);
+    this.burst(at.x, at.z, g.h, 6, '#f8f0c0');
+    bag.take(Math.cos(att.ang), Math.sin(att.ang), pd.knock * 0.55);
+    this.say(pd.name + '!');
+  },
+
   spark(x, z, h, r, life) { this.sparks.push({ x, z, h, r, r0: r, life, life0: life }); },
 
   burst(x, z, h, n, col) {
@@ -912,6 +992,7 @@ const game = {
         case 'weight':      return this.stepWeight();
         case 'roster':      return this.stepRoster();
         case 'newfighter':  return this.stepNewFighter();
+        case 'training':    return this.stepTraining();
         case 'fightercard': return this.stepFighterCard();
         case 'multiplayer': return this.stepMultiplayer();
         case 'mpsoon':      return this.stepSoon();
@@ -932,6 +1013,8 @@ const game = {
       this.shake *= 0.94;
       return;
     }
+
+    if (this.bagMode) return this.stepBag();
 
     if (this.phase === 'rest') {
       this.restT--;
@@ -991,7 +1074,11 @@ const game = {
       b.x = clamp(b.x, -lx, lx); b.z = clamp(b.z, -lz, lz);
     }
 
-    // ---- fx ------------------------------------------------------------------
+    this.stepFx();
+  },
+
+  /* sparks, bits and the shake, whatever is going on above them */
+  stepFx() {
     for (let i = this.sparks.length - 1; i >= 0; i--) {
       const s = this.sparks[i];
       s.life--; s.r = s.r0 * (0.5 + 1.1 * (1 - s.life / s.life0));
@@ -1017,8 +1104,16 @@ const game = {
     }
 
     drawRingBack(ctx, this.frames);
-    const order = [this.player, this.bot].sort((a, b) => a.z - b.z);
-    for (const b of order) drawBoxer(ctx, b);
+    if (this.bagMode) {
+      const at = this.bag.at();
+      const both = at.z < this.player.z
+        ? [() => drawBag(ctx, this.bag), () => drawBoxer(ctx, this.player)]
+        : [() => drawBoxer(ctx, this.player), () => drawBag(ctx, this.bag)];
+      for (const d of both) d();
+    } else {
+      const order = [this.player, this.bot].sort((a, b) => a.z - b.z);
+      for (const b of order) drawBoxer(ctx, b);
+    }
     if (Wire.active && this.screen === 'fight') drawYouTag(ctx, this.localBoxer());
     for (const p of this.bits) drawParticle(ctx, p);
     for (const s of this.sparks) drawSpark(ctx, s);
@@ -1030,9 +1125,11 @@ const game = {
       switch (this.screen) {
         case 'menu':
           drawMenu(ctx, this.menuItems(), this.menuIdx, this.weight); break;
+        case 'training':
+          drawTraining(ctx, this.trainSel); break;
         case 'weight':
           drawWeightTable(ctx, 'PICK YOUR DIVISION', this.weightPick, true,
-                          'SPACE FIGHT   B BACK'); break;
+                          this.bagMode ? 'SPACE WORK   B BACK' : 'SPACE FIGHT   B BACK'); break;
         case 'roster':
           drawRoster(ctx, Profile.fighters(), this.rosterSel); break;
         case 'newfighter':
@@ -1089,9 +1186,13 @@ const game = {
     // marked as yours.
     const mineIsA = !Wire.active || Wire.role === 'host';
     drawStatus(ctx, this.player, 2, 0, 170, this.playerName, Wire.active && mineIsA);
-    drawStatus(ctx, this.bot, VIEW_W - 172, 0, 170,
-               Wire.active ? this.botName : 'OPPONENT', Wire.active && !mineIsA);
-    drawClock(ctx, 176, 0, 48, this.round, this.roundT);
+    if (this.bagMode) {
+      drawBagCard(ctx, this.bag, VIEW_W - 172, 0, 170);
+    } else {
+      drawStatus(ctx, this.bot, VIEW_W - 172, 0, 170,
+                 Wire.active ? this.botName : 'OPPONENT', Wire.active && !mineIsA);
+      drawClock(ctx, 176, 0, 48, this.round, this.roundT);
+    }
 
     px(ctx, 0, PANEL_Y, VIEW_W, VIEW_H - PANEL_Y, '#101828');
     const c = '#181820';
