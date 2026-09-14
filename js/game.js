@@ -5,7 +5,8 @@ cv.width = VIEW_W; cv.height = VIEW_H;    // the buffer size comes from config
 const ctx = cv.getContext('2d', { alpha: false });
 ctx.imageSmoothingEnabled = false;
 
-const IDLE = { mx: 0, mz: 0, block: false, duck: false, slip: 0, punch: null, charge: false };
+const IDLE = { mx: 0, mz: 0, block: false, duck: false, slip: 0, punch: null,
+               charge: false, step: false };
 
 const game = {
   player: new Boxer(-30, 26, PAL_PLAYER, 'YOU', true),
@@ -877,7 +878,8 @@ const game = {
       mx: (Input.down('d') ? 1 : 0) - (Input.down('a') ? 1 : 0),
       mz: (Input.down('s') ? 1 : 0) - (Input.down('w') ? 1 : 0),
       block: Input.down(' '),
-      duck: Input.down('ArrowDown'),
+      duck: Input.down('k'),
+      step: Input.down('Shift'),
       slip: (Input.down('e') ? 1 : 0) - (Input.down('q') ? 1 : 0),
       charge: Input.down('f'),
       punch: Input.takePunch(),
@@ -1067,9 +1069,9 @@ const game = {
       px(ctx, 0, PANEL_Y, VIEW_W, VIEW_H - PANEL_Y, '#101828');
       drawBox(ctx, 2, PANEL_Y + 2, VIEW_W - 4, 56);
       const mc = '#181820';
-      text(ctx, 'WASD MOVE  SPACE GUARD  ' + KEY.D + ' DUCK  Q/E SLIP  F POWER', 10, PANEL_Y + 8, mc);
-      text(ctx, KEY.L + ' JAB    ' + KEY.R + ' CROSS    SHIFT+' + KEY.L + '/' + KEY.R + ' HOOK', 10, PANEL_Y + 19, mc);
-      text(ctx, KEY.U + KEY.L + '/' + KEY.U + KEY.R + ' UPPERCUT      ' + KEY.D + KEY.L + '/' + KEY.D + KEY.R + ' BODY', 10, PANEL_Y + 30, mc);
+      text(ctx, 'WASD MOVE   K DUCK   Q/E SLIP   SHIFT STEP IN', 10, PANEL_Y + 8, mc);
+      text(ctx, 'J JAB    L CROSS    U/O HOOKS    N/M BODY', 10, PANEL_Y + 19, mc);
+      text(ctx, 'I+J/I+L UPPERCUT    SPACE GUARD    F POWER', 10, PANEL_Y + 30, mc);
       text(ctx, 'IN A FIGHT:  P PAUSE  R RESTART  ESC LEAVE/FORFEIT', 10, PANEL_Y + 41, mc);
       return;
     }
@@ -1096,10 +1098,10 @@ const game = {
     const AL = KEY.L, AR = KEY.R, AU = KEY.U, AD = KEY.D;
     if (this.page === 0) {
       drawBox(ctx, 2, PANEL_Y + 2, VIEW_W - 4, 56);
-      text(ctx, 'WASD MOVE  SPACE GUARD  ' + AD + ' DUCK  Q/E SLIP  F POWER', 10, PANEL_Y + 8, c);
-      text(ctx, AL + ' JAB    ' + AR + ' CROSS    SHIFT+' + AL + '/' + AR + ' HOOK', 10, PANEL_Y + 19, c);
-      text(ctx, AU + AL + '/' + AU + AR + ' UPPERCUT      ' + AD + AL + '/' + AD + AR + ' BODY', 10, PANEL_Y + 30, c);
-        text(ctx, 'H GUIDE   M SOUND ' + (this.sound ? 'ON ' : 'OFF') + '  P PAUSE   ' +
+      text(ctx, 'WASD MOVE   K DUCK   Q/E SLIP   SHIFT STEP IN', 10, PANEL_Y + 8, c);
+      text(ctx, 'J JAB    L CROSS    U/O HOOKS    N/M BODY', 10, PANEL_Y + 19, c);
+      text(ctx, 'I+J/I+L UPPERCUT    SPACE GUARD    F POWER', 10, PANEL_Y + 30, c);
+        text(ctx, 'H GUIDE   V SOUND ' + (this.sound ? 'ON ' : 'OFF') + '  P PAUSE   ' +
                 (Wire.active ? 'ESC FORFEIT' : 'R RESET'), 10, PANEL_Y + 41, c);
     } else if (this.page === 1) {
       drawBox(ctx, 2, PANEL_Y + 2, VIEW_W - 4, 56);
@@ -1144,13 +1146,14 @@ Input.init();
 Input.onMeta = k => {
   if (game.screen !== 'fight') return;      // menus do their own input
   if (k === 'p') { game.paused = !game.paused; }
-  else if (k === 'm') { game.sound = Sfx.toggleMute(); }
+  else if (k === 'v') { game.sound = Sfx.toggleMute(); }
   else if (k === 'h') { game.page = (game.page + 1) % 3; }
   else if (k === 'r') { if (!Wire.active) game.reset(); }
   else if (game.askQuit && (k === 'y' || k === 'Escape')) {
     if (k === 'y') game.forfeitNow(); else game.askQuit = false;
+    Input.queue.length = 0;              // N is also a body shot
   }
-  else if (game.askQuit && k === 'n') { game.askQuit = false; }
+  else if (game.askQuit && k === 'n') { game.askQuit = false; Input.queue.length = 0; }
   else if (k === 'Escape') {
     // online you cannot simply walk out mid-fight; you forfeit or you box on
     if (Wire.active && !game.forfeit && game.phase !== 'over') game.askQuit = true;

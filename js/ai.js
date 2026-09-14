@@ -70,7 +70,8 @@ class Brain {
     const tx = dx / dist, tz = dz / dist;      // towards the player
     const lx = -tz * this.circleDir, lz = tx * this.circleDir;
 
-    const out = { mx: 0, mz: 0, block: false, duck: false, slip: 0, punch: null, charge: false };
+    const out = { mx: 0, mz: 0, block: false, duck: false, slip: 0, punch: null,
+                  charge: false, step: false };
     this.bounce += 0.09;
 
     if (self.hurt > 0 || self.down || foe.down) {

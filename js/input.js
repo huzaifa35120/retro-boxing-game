@@ -1,16 +1,16 @@
 'use strict';
 
-/* Keyboard.
-   WASD .......... move (screen relative)
-   SPACE ......... guard up (held)
-   ARROW DOWN .... duck (held)
-   ARROW LEFT .... jab            ARROW RIGHT ....... cross
-   UP + LEFT ..... left uppercut  UP + RIGHT ........ right uppercut
-   DOWN + LEFT ... left body      DOWN + RIGHT ...... right body
-   SHIFT + LEFT .. left hook      SHIFT + RIGHT ..... right hook
+/* Keyboard. The right hand boxes, the left hand moves him.
+   WASD ...... move (screen relative)      SPACE ... guard up (held)
+   K ......... duck (held)                 Q / E ... slip left / right
+   SHIFT ..... step in                     F ....... load a power shot
+   J ......... jab                         L ....... cross
+   I + J ..... left uppercut               I + L ... right uppercut
+   U ......... left hook                   O ....... right hook
+   N ......... left body                   M ....... right body
 
-   The modifier is read from what is *already held* at the moment the
-   left/right arrow goes down, so DOWN-then-LEFT gives a body shot. */
+   I is read from what is *already held* when J or L goes down, so
+   I-then-J gives an uppercut. K is only ever the crouch. */
 const Input = {
   keys: Object.create(null),
   hits: Object.create(null),   // keys that went down this frame, for menus
@@ -36,17 +36,19 @@ const Input = {
 
       this.hits[k] = true;
 
-      if (raw === 'ArrowLeft' || raw === 'ArrowRight') {
-        const left = raw === 'ArrowLeft';
-        let name;
-        if (e.shiftKey || this.keys['Shift'])   name = left ? 'leftHook'  : 'rightHook';
-        else if (this.keys['ArrowUp'])          name = left ? 'leftUpper' : 'rightUpper';
-        else if (this.keys['ArrowDown'])        name = left ? 'leftBody'  : 'rightBody';
-        else                                    name = left ? 'jab'       : 'cross';
-        if (this.queue.length < 2) this.queue.push(name);
-      }
+      /* J and L are his two hands. I raises them into uppercuts, U and O
+         swing them round, N and M take them downstairs. K is the crouch and
+         is not a punch key at all. */
+      let name = null;
+      if (k === 'j')      name = this.keys['i'] ? 'leftUpper'  : 'jab';
+      else if (k === 'l') name = this.keys['i'] ? 'rightUpper' : 'cross';
+      else if (k === 'u') name = 'leftHook';
+      else if (k === 'o') name = 'rightHook';
+      else if (k === 'n') name = 'leftBody';
+      else if (k === 'm') name = 'rightBody';
+      if (name && this.queue.length < 2) this.queue.push(name);
 
-      if (this.onMeta && ('pmhr'.includes(k) || k === 'Escape' ||
+      if (this.onMeta && ('phrv'.includes(k) || k === 'Escape' ||
                               k === 'y' || k === 'n')) this.onMeta(k);
     });
 

@@ -41,6 +41,7 @@ class Boxer {
     this.down = false; this.downT = 0;
     this.slipAmt = 0;                 // signed: where the head is, in world units
     this.slipF = 0; this.slipCool = 0; this.slipSign = 0; this.prevSlip = 0;
+    this.stepInF = 0; this.stepInCool = 0; this.prevStepIn = false;
     this.duckSpent = false;
     this.slipDX = 0; this.slipDY = 0; // ...and what that looks like on screen
     this.stats = Boxer.newStats();
@@ -198,6 +199,7 @@ class Boxer {
       this.duckAmt = lerp(this.duckAmt, 0, 0.35);
       this.slipAmt = lerp(this.slipAmt, 0, 0.3);
       this.slipF = 0; this.prevSlip = 0;
+      this.stepInF = 0; this.prevStepIn = false;
       const k = this.hurt / this.hurtMax;
       const wob = Math.sin(this.hurt * 0.9) * k;
       this.headX = this.hitDirX * 3.2 * k + wob * 1.2;
@@ -273,6 +275,26 @@ class Boxer {
         const d = Math.hypot(dx, dz);
         if (d > 24) { this.x += Math.cos(this.ang) * 0.45; this.z += Math.sin(this.ang) * 0.45; }
       }
+
+      // ---- stepping in ----------------------------------------------------
+      // A stride off the back foot to close the gap. It costs a little wind,
+      // will not start one on top of another, and stops short of walking
+      // through him.
+      if (this.stepInCool > 0) this.stepInCool--;
+      if (this.stepInF > 0) {
+        this.stepInF--;
+        if (Math.hypot(dx, dz) > 20) {
+          this.x += Math.cos(this.ang) * STEPIN_SPEED;
+          this.z += Math.sin(this.ang) * STEPIN_SPEED;
+        }
+      } else if (intent.step && !this.prevStepIn && this.stepInCool <= 0 &&
+                 this.st >= ST_STEPIN && this.duckAmt < 0.5) {
+        this.stepInF = STEPIN_FRAMES;
+        this.stepInCool = STEPIN_COOL;
+        this.st -= ST_STEPIN;
+        this.burnTank(ST_STEPIN);
+      }
+      this.prevStepIn = intent.step;
     }
 
     // ---- knockback / drift -------------------------------------------------

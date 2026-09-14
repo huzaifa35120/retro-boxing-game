@@ -55,6 +55,14 @@ const ST_SLIP = 3;             // what one slip costs
    and needs some back before he can go down again. */
 const GLOVE_LIFT = 2;           // the new sprite carries his hands higher
 const ST_DUCK = 0.30;          // wind burnt per frame crouched
+/* ---- stepping in ----
+   A short drive off the back foot to close the gap, the way a man steps in
+   behind a jab. Not a dash: a stride, and it costs a little wind. */
+const STEPIN_SPEED = 1.7;
+const STEPIN_FRAMES = 8;
+const STEPIN_COOL = 26;
+const ST_STEPIN = 3;
+
 const DUCK_UPPER = 3.0;        // an uppercut on a crouching man, x its damage
 const DUCK_ST_MIN = 20;        // wind needed to drop into a crouch
 
@@ -86,7 +94,7 @@ const TKO_KD = 3;               // knockdowns in one round that end it
    hooks are tuned to match the cross exactly. Uppercuts hit hardest and cost
    the most, but have to be thrown from close range.
 --------------------------------------------------------------------------- */
-const KEY = { L: '←', R: '→', U: '↑', D: '↓' };
+const KEY = { L: 'J', R: 'L', U: 'I', D: 'K' };
 const ST_COST = 0.88;          // what every punch costs to throw, x its table price
 
 /* ---- power shots ----
@@ -102,14 +110,14 @@ const CHG_COST  = 2.50;        // for three and a half times the wind
 const POWER_SCALE = 1.25;      // global lift on every punch, all classes
 
 const PUNCHES = {
-  jab:        { hand:'L', kind:'straight', level:'head', wind:2, act:4, rec:5,  reach:29, dmg:3,  sta:4,  sap:2,  stun:8,  knock:1.0, shake:1.8, name:'JAB',     key:KEY.L },
-  cross:      { hand:'R', kind:'straight', level:'head', wind:7, act:6, rec:14, reach:34, dmg:9,  sta:10, sap:5,  stun:18, knock:2.6, shake:4.2, name:'CROSS',   key:KEY.R },
-  leftHook:   { hand:'L', kind:'hook',     level:'head', wind:7, act:6, rec:14, reach:27, dmg:9,  sta:10, sap:5,  stun:18, knock:2.6, shake:4.2, name:'L HOOK',  key:'S+' + KEY.L },
-  rightHook:  { hand:'R', kind:'hook',     level:'head', wind:7, act:6, rec:14, reach:27, dmg:9,  sta:10, sap:5,  stun:18, knock:2.6, shake:4.2, name:'R HOOK',  key:'S+' + KEY.R },
-  leftUpper:  { hand:'L', kind:'upper',    level:'rise', wind:8, act:7, rec:16, reach:18, dmg:12, sta:13, sap:6,  stun:22, knock:2.9, shake:4.8, name:'L UPPER', key:KEY.U + KEY.L },
-  rightUpper: { hand:'R', kind:'upper',    level:'rise', wind:8, act:7, rec:16, reach:18, dmg:12, sta:13, sap:6,  stun:22, knock:2.9, shake:4.8, name:'R UPPER', key:KEY.U + KEY.R },
-  leftBody:   { hand:'L', kind:'straight', level:'body', wind:3, act:5, rec:7,  reach:28, dmg:4,  sta:6,  sap:9,  stun:10, knock:1.2, shake:2.0, name:'L BODY',  key:KEY.D + KEY.L },
-  rightBody:  { hand:'R', kind:'straight', level:'body', wind:6, act:6, rec:12, reach:30, dmg:7,  sta:9,  sap:14, stun:15, knock:1.9, shake:3.2, name:'R BODY',  key:KEY.D + KEY.R },
+  jab:        { hand:'L', kind:'straight', level:'head', wind:2, act:4, rec:5,  reach:29, dmg:3,  sta:4,  sap:2,  stun:8,  knock:1.0, shake:1.8, name:'JAB',     key:'J' },
+  cross:      { hand:'R', kind:'straight', level:'head', wind:7, act:6, rec:14, reach:34, dmg:9,  sta:10, sap:5,  stun:18, knock:2.6, shake:4.2, name:'CROSS',   key:'L' },
+  leftHook:   { hand:'L', kind:'hook',     level:'head', wind:7, act:6, rec:14, reach:27, dmg:9,  sta:10, sap:5,  stun:18, knock:2.6, shake:4.2, name:'L HOOK',  key:'U' },
+  rightHook:  { hand:'R', kind:'hook',     level:'head', wind:7, act:6, rec:14, reach:27, dmg:9,  sta:10, sap:5,  stun:18, knock:2.6, shake:4.2, name:'R HOOK',  key:'O' },
+  leftUpper:  { hand:'L', kind:'upper',    level:'rise', wind:8, act:7, rec:16, reach:18, dmg:12, sta:13, sap:6,  stun:22, knock:2.9, shake:4.8, name:'L UPPER', key:'I+J' },
+  rightUpper: { hand:'R', kind:'upper',    level:'rise', wind:8, act:7, rec:16, reach:18, dmg:12, sta:13, sap:6,  stun:22, knock:2.9, shake:4.8, name:'R UPPER', key:'I+L' },
+  leftBody:   { hand:'L', kind:'straight', level:'body', wind:3, act:5, rec:7,  reach:28, dmg:4,  sta:6,  sap:9,  stun:10, knock:1.2, shake:2.0, name:'L BODY',  key:'N' },
+  rightBody:  { hand:'R', kind:'straight', level:'body', wind:6, act:6, rec:12, reach:30, dmg:7,  sta:9,  sap:14, stun:15, knock:1.9, shake:3.2, name:'R BODY',  key:'M' },
 };
 
 /* The 1-5 ratings shown in the in-game guide are derived from the numbers
