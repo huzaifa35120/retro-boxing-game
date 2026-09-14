@@ -11,11 +11,48 @@
 
    I is read from what is *already held* when J or L goes down, so
    I-then-J gives an uppercut. K is only ever the crouch. */
+/* The player's key layout. Local to this browser: what crosses the wire in
+   an online fight is the intent, never the key that caused it, so two men
+   with different layouts still run the same fight. */
+const Binds = {
+  KEY_STORE: 'retroboxing.binds.v1',
+  map: Object.assign({}, DEFAULT_BINDS),
+
+  load() {
+    try {
+      const raw = localStorage.getItem(this.KEY_STORE);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        for (const a in DEFAULT_BINDS) if (typeof saved[a] === 'string') this.map[a] = saved[a];
+      }
+    } catch (e) { /* a broken layout is not worth failing over */ }
+  },
+  save() {
+    try { localStorage.setItem(this.KEY_STORE, JSON.stringify(this.map)); } catch (e) {}
+  },
+  k(action) { return this.map[action]; },
+  label(action) { return keyLabel(this.map[action]); },
+  is(action, k) { return this.map[action] === k; },
+  usedBy(k) { for (const a in this.map) if (this.map[a] === k) return a; return null; },
+
+  /* Two actions cannot share a key, so binding one onto another swaps them. */
+  set(action, k) {
+    const holder = this.usedBy(k);
+    if (holder === action) return;
+    if (holder) this.map[holder] = this.map[action];
+    this.map[action] = k;
+    this.save();
+  },
+  reset() { this.map = Object.assign({}, DEFAULT_BINDS); this.save(); },
+};
+Binds.load();
+
 const Input = {
   keys: Object.create(null),
   hits: Object.create(null),   // keys that went down this frame, for menus
   queue: [],          // punches requested this frame
   onMeta: null,       // callback for pause / mute / help / reset
+  capture: null,      // set to grab the next key press, for rebinding
 
   init() {
     const swallow = new Set([
@@ -28,6 +65,10 @@ const Input = {
       if (swallow.has(raw)) e.preventDefault();
       Sfx.ensure();
       if (e.repeat) return;
+
+      // the controls screen is listening for one key and nothing else
+      if (this.capture) { e.preventDefault(); const f = this.capture; this.capture = null; f(raw); return; }
+
       this.keys[k] = true;
 
       /* A key that goes into a name or a room code must not also work a
@@ -36,20 +77,21 @@ const Input = {
 
       this.hits[k] = true;
 
-      /* J and L are his two hands. I raises them into uppercuts, U and O
-         swing them round, N and M take them downstairs. K is the crouch and
-         is not a punch key at all. */
+      /* Two hands, and a key that raises them into uppercuts. Which keys
+         those are is the player's business - see Binds. */
+      const up = this.keys[Binds.k('upper')];
       let name = null;
-      if (k === 'j')      name = this.keys['i'] ? 'leftUpper'  : 'jab';
-      else if (k === 'l') name = this.keys['i'] ? 'rightUpper' : 'cross';
-      else if (k === 'u') name = 'leftHook';
-      else if (k === 'o') name = 'rightHook';
-      else if (k === 'n') name = 'leftBody';
-      else if (k === 'm') name = 'rightBody';
+      if (Binds.is('jab', k))        name = up ? 'leftUpper'  : 'jab';
+      else if (Binds.is('cross', k)) name = up ? 'rightUpper' : 'cross';
+      else if (Binds.is('hookL', k)) name = 'leftHook';
+      else if (Binds.is('hookR', k)) name = 'rightHook';
+      else if (Binds.is('bodyL', k)) name = 'leftBody';
+      else if (Binds.is('bodyR', k)) name = 'rightBody';
       if (name && this.queue.length < 2) this.queue.push(name);
 
-      if (this.onMeta && ('phrv'.includes(k) || k === 'Escape' ||
-                              k === 'y' || k === 'n')) this.onMeta(k);
+      if (this.onMeta && (k === 'Escape' || k === 'y' || k === 'n' ||
+                          Binds.is('pause', k) || Binds.is('guide', k) ||
+                          Binds.is('sound', k) || Binds.is('restart', k))) this.onMeta(k);
     });
 
     window.addEventListener('keyup', e => {

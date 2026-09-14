@@ -539,7 +539,7 @@ function drawGuide(ctx, x, y, w) {
     text(ctx, 'STA', cx + 124, y, '#a06010');
     GUIDE_COLS[c].forEach((k, i) => {
       const p = PUNCHES[k], ry = y + 10 + i * 10;
-      text(ctx, p.key, cx, ry, dark);
+      text(ctx, punchKey(k), cx, ry, dark);
       text(ctx, p.name, cx + 22, ry, dark);
       drawRating(ctx, cx + 68, ry + 1, p.spd, '#3878e0');
       drawRating(ctx, cx + 96, ry + 1, p.pwr, '#e83828');
@@ -630,6 +630,68 @@ function drawCount(ctx, name, n) {
 }
 
 /* ------------------------------------------------------------- menu + guide */
+
+/* What the player actually presses for a punch, whatever he has moved it to. */
+function punchKey(name) {
+  const B = a => Binds.label(a);
+  switch (name) {
+    case 'jab':        return B('jab');
+    case 'cross':      return B('cross');
+    case 'leftHook':   return B('hookL');
+    case 'rightHook':  return B('hookR');
+    case 'leftUpper':  return B('upper') + '+' + B('jab');
+    case 'rightUpper': return B('upper') + '+' + B('cross');
+    case 'leftBody':   return B('bodyL');
+    case 'rightBody':  return B('bodyR');
+  }
+  return '';
+}
+
+function drawSettings(ctx, sel, sound) {
+  const w = 200, x = Math.round(CX - w / 2), y = 52, h = 78;
+  drawBox(ctx, x, y, w, h);
+  ctext(ctx, 'SETTINGS', CX, y + 7, DARK);
+  px(ctx, x + 10, y + 20, w - 20, 1, DARK);
+  const rows = ['CONTROLS', 'SOUND: ' + (sound ? 'ON' : 'OFF')];
+  rows.forEach((r, i) => {
+    const ry = y + 30 + i * 14;
+    if (i === sel) text(ctx, '>', x + 20, ry, DARK);
+    text(ctx, r, x + 32, ry, DARK);
+  });
+  ctext(ctx, 'W/S MOVE   SPACE SELECT   B BACK', CX, y + h - 12, DARK);
+}
+
+/* Every key the game reads, and the place to move them. Doubles as the
+   control guide, which is why nothing is left off it. */
+function drawControls(ctx, row, waiting, msg) {
+  const x = 14, y = 14, w = VIEW_W - 28, h = 184;
+  drawBox(ctx, x, y, w, h);
+  ctext(ctx, 'CONTROLS', CX, y + 5, DARK);
+  px(ctx, x + 10, y + 15, w - 20, 1, DARK);
+
+  const PER = 11;
+  BIND_ROWS.forEach(([action, name], i) => {
+    const col = i < PER ? 0 : 1;
+    const ry = y + 22 + (i % PER) * 11;
+    const cx2 = x + 14 + col * 180;
+    const on = i === row;
+    if (on) px(ctx, cx2 - 4, ry - 2, 172, 11, '#dfe2ee');
+    if (on) text(ctx, '>', cx2 - 3, ry, DARK);
+    text(ctx, name, cx2 + 7, ry, DARK);
+    const k = (on && waiting) ? '...' : Binds.label(action);
+    text(ctx, k, cx2 + 164 - textW(k), ry, on && waiting ? '#c02828' : '#3a4a6a');
+  });
+
+  const ry = y + 22 + PER * 11 + 4;
+  const on = row === BIND_ROWS.length;
+  if (on) px(ctx, x + 10, ry - 2, w - 20, 11, '#dfe2ee');
+  ctext(ctx, (on ? '> ' : '') + 'RESET TO DEFAULTS', CX, ry, on ? '#c02828' : DARK);
+
+  px(ctx, x + 10, y + h - 26, w - 20, 1, DARK);
+  ctext(ctx, waiting ? 'PRESS A KEY   (ESC TO KEEP IT)' : (msg || 'SPACE TO REBIND'),
+        CX, y + h - 21, waiting ? '#c02828' : '#585868');
+  ctext(ctx, 'W/S ROW   A/D COLUMN   SPACE CHANGE   B BACK', CX, y + h - 11, DARK);
+}
 
 function drawTraining(ctx, sel) {
   const w = 210, x = Math.round(CX - w / 2), y = 44, h = 104;

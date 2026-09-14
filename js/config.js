@@ -98,6 +98,43 @@ const TKO_KD = 3;               // knockdowns in one round that end it
    the most, but have to be thrown from close range.
 --------------------------------------------------------------------------- */
 const KEY = { L: 'J', R: 'L', U: 'I', D: 'K' };
+
+/* ---- controls ----
+   Every key the game reads, in one place, so a player can move them around
+   and so the screen that lists them is the same list the game obeys. */
+const DEFAULT_BINDS = {
+  up: 'w', down: 's', left: 'a', right: 'd',
+  guard: ' ', duck: 'k', slipL: 'q', slipR: 'e', step: 'Shift', power: 'f',
+  jab: 'j', cross: 'l', upper: 'i',
+  hookL: 'u', hookR: 'o', bodyL: 'n', bodyR: 'm',
+  pause: 'p', guide: 'h', sound: 'v', restart: 'r',
+};
+
+/* The order the controls screen lists them in, two columns. */
+const BIND_ROWS = [
+  ['up', 'MOVE UP'],      ['down', 'MOVE DOWN'],
+  ['left', 'MOVE LEFT'],  ['right', 'MOVE RIGHT'],
+  ['guard', 'GUARD'],     ['duck', 'DUCK'],
+  ['slipL', 'SLIP LEFT'], ['slipR', 'SLIP RIGHT'],
+  ['step', 'STEP IN'],    ['power', 'POWER SHOT'],
+  ['pause', 'PAUSE'],
+  ['jab', 'JAB'],         ['cross', 'CROSS'],
+  ['upper', 'UPPERCUT'],  ['hookL', 'LEFT HOOK'],
+  ['hookR', 'RIGHT HOOK'],['bodyL', 'LEFT BODY'],
+  ['bodyR', 'RIGHT BODY'],['guide', 'PUNCH GUIDE'],
+  ['sound', 'SOUND'],     ['restart', 'RESTART'],
+];
+
+/* What a key is called when it is written down. */
+function keyLabel(k) {
+  if (k === ' ') return 'SPACE';
+  if (k === 'ArrowUp') return 'UP';
+  if (k === 'ArrowDown') return 'DOWN';
+  if (k === 'ArrowLeft') return 'LEFT';
+  if (k === 'ArrowRight') return 'RIGHT';
+  if (k === 'Escape') return 'ESC';
+  return k.length === 1 ? k.toUpperCase() : k.toUpperCase().slice(0, 7);
+}
 const ST_COST = 0.88;          // what every punch costs to throw, x its table price
 
 /* ---- power shots ----

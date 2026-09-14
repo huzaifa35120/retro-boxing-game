@@ -30,6 +30,7 @@ const game = {
   authRow: 0, authEmail: '', authPass: '', authMsg: '',
   roomRow: 0, roomCode: '', roomSlot: 0, roomTop: 0,
   trainSel: 0, bagMode: false, bag: new Bag(),
+  setSel: 0, bindRow: 0, bindWait: false, bindMsg: '',
   boardDiv: DEFAULT_WEIGHT,
   rulePage: 0,
   quickOn: false, quickT: 0, quickMsg: '',
@@ -62,8 +63,7 @@ const game = {
   },
 
   menuItems() {
-    return ['TRAINING', 'MY FIGHTERS', 'MULTIPLAYER', 'GUIDE', 'RULES',
-            'SOUND: ' + (this.sound ? 'ON' : 'OFF')];
+    return ['TRAINING', 'MY FIGHTERS', 'MULTIPLAYER', 'GUIDE', 'RULES', 'SETTINGS'];
   },
 
   mpItems() {
@@ -180,9 +180,51 @@ const game = {
       case 2: this.mpSel = 0; this.screen = 'multiplayer'; break;
       case 3: this.guidePage = 0; this.screen = 'guide'; break;
       case 4: this.rulePage = 0; this.screen = 'rules'; break;
-      case 5: this.sound = Sfx.toggleMute(); break;
+      case 5: this.setSel = 0; this.screen = 'settings'; break;
     }
   },
+
+  stepSettings() {
+    const n = 2;
+    if (Input.any('w', 'ArrowUp')) this.setSel = (this.setSel + n - 1) % n;
+    if (Input.any('s', 'ArrowDown')) this.setSel = (this.setSel + 1) % n;
+    if (Input.any('b', 'Escape', 'Backspace')) { this.screen = 'menu'; return; }
+    if (Input.any(' ', 'Enter')) {
+      Input.flush();
+      if (this.setSel === 0) { this.bindRow = 0; this.bindWait = false; this.screen = 'controls'; }
+      else this.sound = Sfx.toggleMute();
+    }
+  },
+
+  /* The list of keys the game obeys, and the place to move them about. */
+  stepControls() {
+    if (this.bindWait) return;                 // waiting on a key, nothing else
+    const last = BIND_ROWS.length;             // the row past the end is RESET
+    if (Input.any('w', 'ArrowUp')) this.bindRow = (this.bindRow + last) % (last + 1);
+    if (Input.any('s', 'ArrowDown')) this.bindRow = (this.bindRow + 1) % (last + 1);
+    if (Input.any('a', 'ArrowLeft')) this.bindRow = Math.max(0, this.bindRow - 11);
+    if (Input.any('d', 'ArrowRight')) this.bindRow = Math.min(last, this.bindRow + 11);
+    if (Input.any('b', 'Escape', 'Backspace')) { this.screen = 'settings'; return; }
+    if (!Input.any(' ', 'Enter')) return;
+    Input.flush();
+
+    if (this.bindRow === last) { Binds.reset(); this.say2('CONTROLS BACK TO DEFAULT'); return; }
+    const action = BIND_ROWS[this.bindRow][0];
+    this.bindWait = true;
+    this.bindMsg = '';
+    Input.capture = raw => {
+      this.bindWait = false;
+      if (raw === 'Escape') return;                       // changed his mind
+      const k = raw.length === 1 ? raw.toLowerCase() : raw;
+      if (k === 'Enter' || k === 'Backspace') { this.bindMsg = 'THAT ONE IS SPOKEN FOR'; return; }
+      const had = Binds.usedBy(k);
+      Binds.set(action, k);
+      this.bindMsg = had && had !== action
+        ? 'SWAPPED WITH ' + (BIND_ROWS.find(r => r[0] === had) || ['', had])[1] : '';
+    };
+  },
+
+  say2(m) { this.bindMsg = m; },
 
   stepTraining() {
     if (Input.any('w', 'ArrowUp')) this.trainSel = (this.trainSel + 1) % 2;
@@ -955,13 +997,13 @@ const game = {
 
   readIntent() {
     return {
-      mx: (Input.down('d') ? 1 : 0) - (Input.down('a') ? 1 : 0),
-      mz: (Input.down('s') ? 1 : 0) - (Input.down('w') ? 1 : 0),
-      block: Input.down(' '),
-      duck: Input.down('k'),
-      step: Input.down('Shift'),
-      slip: (Input.down('e') ? 1 : 0) - (Input.down('q') ? 1 : 0),
-      charge: Input.down('f'),
+      mx: (Input.down(Binds.k('right')) ? 1 : 0) - (Input.down(Binds.k('left')) ? 1 : 0),
+      mz: (Input.down(Binds.k('down')) ? 1 : 0) - (Input.down(Binds.k('up')) ? 1 : 0),
+      block: Input.down(Binds.k('guard')),
+      duck: Input.down(Binds.k('duck')),
+      step: Input.down(Binds.k('step')),
+      slip: (Input.down(Binds.k('slipR')) ? 1 : 0) - (Input.down(Binds.k('slipL')) ? 1 : 0),
+      charge: Input.down(Binds.k('power')),
       punch: Input.takePunch(),
     };
   },
@@ -992,6 +1034,8 @@ const game = {
         case 'weight':      return this.stepWeight();
         case 'roster':      return this.stepRoster();
         case 'newfighter':  return this.stepNewFighter();
+        case 'settings':    return this.stepSettings();
+        case 'controls':    return this.stepControls();
         case 'training':    return this.stepTraining();
         case 'fightercard': return this.stepFighterCard();
         case 'multiplayer': return this.stepMultiplayer();
@@ -1127,6 +1171,10 @@ const game = {
           drawMenu(ctx, this.menuItems(), this.menuIdx, this.weight); break;
         case 'training':
           drawTraining(ctx, this.trainSel); break;
+        case 'settings':
+          drawSettings(ctx, this.setSel, this.sound); break;
+        case 'controls':
+          drawControls(ctx, this.bindRow, this.bindWait, this.bindMsg); break;
         case 'weight':
           drawWeightTable(ctx, 'PICK YOUR DIVISION', this.weightPick, true,
                           this.bagMode ? 'SPACE WORK   B BACK' : 'SPACE FIGHT   B BACK'); break;
@@ -1166,9 +1214,16 @@ const game = {
       px(ctx, 0, PANEL_Y, VIEW_W, VIEW_H - PANEL_Y, '#101828');
       drawBox(ctx, 2, PANEL_Y + 2, VIEW_W - 4, 56);
       const mc = '#181820';
-      text(ctx, 'WASD MOVE   K DUCK   Q/E SLIP   SHIFT STEP IN', 10, PANEL_Y + 8, mc);
-      text(ctx, 'J JAB    L CROSS    U/O HOOKS    N/M BODY', 10, PANEL_Y + 19, mc);
-      text(ctx, 'I+J/I+L UPPERCUT    SPACE GUARD    F POWER', 10, PANEL_Y + 30, mc);
+      const B = a => Binds.label(a);
+      text(ctx, B('up') + B('left') + B('down') + B('right') + ' MOVE   ' + B('duck') +
+                ' DUCK   ' + B('slipL') + '/' + B('slipR') + ' SLIP   ' + B('step') +
+                ' STEP IN', 10, PANEL_Y + 8, mc);
+      text(ctx, B('jab') + ' JAB   ' + B('cross') + ' CROSS   ' + B('hookL') + '/' +
+                B('hookR') + ' HOOKS   ' + B('bodyL') + '/' + B('bodyR') + ' BODY',
+           10, PANEL_Y + 19, mc);
+      text(ctx, B('upper') + '+' + B('jab') + '/' + B('upper') + '+' + B('cross') +
+                ' UPPERCUT   ' + B('guard') + ' GUARD   ' + B('power') + ' POWER',
+           10, PANEL_Y + 30, mc);
       text(ctx, 'IN A FIGHT:  P PAUSE  R RESTART  ESC LEAVE/FORFEIT', 10, PANEL_Y + 41, mc);
       return;
     }
@@ -1199,11 +1254,18 @@ const game = {
     const AL = KEY.L, AR = KEY.R, AU = KEY.U, AD = KEY.D;
     if (this.page === 0) {
       drawBox(ctx, 2, PANEL_Y + 2, VIEW_W - 4, 56);
-      text(ctx, 'WASD MOVE   K DUCK   Q/E SLIP   SHIFT STEP IN', 10, PANEL_Y + 8, c);
-      text(ctx, 'J JAB    L CROSS    U/O HOOKS    N/M BODY', 10, PANEL_Y + 19, c);
-      text(ctx, 'I+J/I+L UPPERCUT    SPACE GUARD    F POWER', 10, PANEL_Y + 30, c);
-        text(ctx, 'H GUIDE   V SOUND ' + (this.sound ? 'ON ' : 'OFF') + '  P PAUSE   ' +
-                (Wire.active ? 'ESC FORFEIT' : 'R RESET'), 10, PANEL_Y + 41, c);
+      const B = a => Binds.label(a);
+      text(ctx, B('up') + B('left') + B('down') + B('right') + ' MOVE   ' + B('duck') +
+                ' DUCK   ' + B('slipL') + '/' + B('slipR') + ' SLIP   ' + B('step') +
+                ' STEP IN', 10, PANEL_Y + 8, c);
+      text(ctx, B('jab') + ' JAB   ' + B('cross') + ' CROSS   ' + B('hookL') + '/' +
+                B('hookR') + ' HOOKS   ' + B('bodyL') + '/' + B('bodyR') + ' BODY',
+           10, PANEL_Y + 19, c);
+      text(ctx, B('upper') + '+' + B('jab') + '/' + B('upper') + '+' + B('cross') +
+                ' UPPERCUT   ' + B('guard') + ' GUARD   ' + B('power') + ' POWER',
+           10, PANEL_Y + 30, c);
+        text(ctx, Binds.label('guide') + ' GUIDE   ' + Binds.label('sound') + ' SOUND ' + (this.sound ? 'ON ' : 'OFF') + '  P PAUSE   ' +
+                (Wire.active ? 'ESC FORFEIT' : Binds.label('restart') + ' RESET'), 10, PANEL_Y + 41, c);
     } else if (this.page === 1) {
       drawBox(ctx, 2, PANEL_Y + 2, VIEW_W - 4, 56);
       drawGuide(ctx, 10, PANEL_Y + 8, VIEW_W - 20);
@@ -1246,10 +1308,10 @@ if (Net.signedIn()) {
 Input.init();
 Input.onMeta = k => {
   if (game.screen !== 'fight') return;      // menus do their own input
-  if (k === 'p') { game.paused = !game.paused; }
-  else if (k === 'v') { game.sound = Sfx.toggleMute(); }
-  else if (k === 'h') { game.page = (game.page + 1) % 3; }
-  else if (k === 'r') { if (!Wire.active) game.reset(); }
+  if (Binds.is('pause', k)) { game.paused = !game.paused; }
+  else if (Binds.is('sound', k)) { game.sound = Sfx.toggleMute(); }
+  else if (Binds.is('guide', k)) { game.page = (game.page + 1) % 3; }
+  else if (Binds.is('restart', k)) { if (!Wire.active) game.reset(); }
   else if (game.askQuit && (k === 'y' || k === 'Escape')) {
     if (k === 'y') game.forfeitNow(); else game.askQuit = false;
     Input.queue.length = 0;              // N is also a body shot
