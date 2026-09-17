@@ -762,10 +762,12 @@ const game = {
     if (caught) result = 'clean';
     else if (def.duckAmt > 0.6 && pd.level === 'head') result = 'miss';
     else if (def.blocking && def.hurt <= 0 && frontal) {
-      // A high guard stops everything aimed at the head. Body shots and
-      // uppercuts are what beat it, but the gloves still catch a fair share
-      // of those on the way in.
-      result = pd.level === 'head' || Rng.next() < GUARD_CATCH ? 'block' : 'graze';
+      // A guard is elbows as well as gloves: head punches and body shots both
+      // come off it. The uppercut is the one that beats it, coming up inside
+      // the arms, and even that gets caught a fair share of the time.
+      result = pd.level === 'rise'
+             ? (Rng.next() < GUARD_CATCH ? 'block' : 'graze')
+             : 'block';
     } else result = 'clean';
 
     att.punch.hit = true;

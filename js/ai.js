@@ -43,6 +43,7 @@ class Brain {
     this.comboT = 0;
     this.guardT = 0;
     this.duckT = 0;
+    this.bodyT = 0;
     this.slipT = 0; this.slipDir = 0;
     this.react = 0;
     this.bounce = 0;
@@ -50,6 +51,16 @@ class Brain {
   }
 
   pickCombo(self, foe) {
+    /* Sometimes he gets down behind his shoulder and digs to the body
+       instead of boxing upright. Worth most against a man standing tall,
+       and he will not try it on someone already crouched. */
+    if (this.bodyT <= 0 && self.st > 44 && foe.duckAmt < 0.4 &&
+        Math.random() < (foe.blocking ? 0.22 : 0.34)) {
+      this.bodyT = 55 + (Math.random() * 45 | 0);
+      this.combo.length = 0;
+      this.comboT = 0;
+      return;
+    }
     // plenty of wind and a bit of nerve: load the first one up
     if (self.st > 58 && this.loadT <= 0 && Math.random() < 0.16) {
       this.loadT = 45 + Math.floor(Math.random() * 45);
@@ -75,7 +86,8 @@ class Brain {
     this.bounce += 0.09;
 
     if (self.hurt > 0 || self.down || foe.down) {
-      this.combo.length = 0; this.loadT = 0; this.slipT = 0; this.guardT = 12; return out;
+      this.combo.length = 0; this.loadT = 0; this.slipT = 0; this.bodyT = 0;
+      this.guardT = 12; return out;
     }
 
     // ---- out of wind: break off and get some air back -----------------------
@@ -115,12 +127,28 @@ class Brain {
       }
     }
 
+    // ---- down behind the shoulder, digging -------------------------------
+    if (this.bodyT > 0) {
+      this.bodyT--;
+      out.duck = true;
+      if (self.st < 16 || self.duckSpent) { this.bodyT = 0; return out; }
+      if (dist > 28) { out.mx = tx * 0.75; out.mz = tz * 0.75; }
+      else if (dist < 18) { out.mx = -tx * 0.45; out.mz = -tz * 0.45; }
+      if (this.comboT > 0) this.comboT--;
+      if (this.comboT <= 0 && !self.punch && dist < 32) {
+        out.punch = Math.random() < 0.5 ? 'leftBody' : 'rightBody';
+        this.comboT = 14 + (Math.random() * 9 | 0);
+      }
+      return out;
+    }
+
     if (this.duckT > 0) {
       this.duckT--;
       out.duck = true;
       if (dist > 34) { out.mx = tx * 0.6; out.mz = tz * 0.6; }
       if (this.duckT === 0 && dist < 34 && self.st > 30 && Math.random() < 0.7) {
-        this.combo = [{ p: Math.random() < 0.5 ? 'rightUpper' : 'leftUpper', d: 0 }];
+        if (Math.random() < 0.4) this.bodyT = 40 + (Math.random() * 35 | 0);  // stay down
+        else this.combo = [{ p: Math.random() < 0.5 ? 'rightUpper' : 'leftUpper', d: 0 }];
       }
       return out;
     }
