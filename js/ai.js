@@ -23,6 +23,9 @@ const COMBOS = {
     [['rightUpper', 0]],
     [['leftUpper', 0], ['rightUpper', 18]],
     [['leftUpper', 0]],
+    [['leftBody', 0], ['rightUpper', 16]],            // downstairs, then up the middle
+    [['rightBody', 0], ['leftBody', 13]],
+    [['leftBody', 0], ['rightBody', 12], ['rightUpper', 17]],
   ],
   light: [                         // running low on wind: cheap punches only
     [['jab', 0]],
@@ -55,7 +58,7 @@ class Brain {
     /* Sometimes he gets down behind his shoulder and digs to the body
        instead of boxing upright. Worth most against a man standing tall,
        and he will not try it on someone already crouched. */
-    if (this.bodyT <= 0 && self.st > 44 && foe.duckAmt < 0.4 &&
+    if (this.bodyT <= 0 && self.st > 44 &&
         Math.random() < (foe.blocking ? 0.22 : 0.34)) {
       this.bodyT = 55 + (Math.random() * 45 | 0);
       this.combo.length = 0;
