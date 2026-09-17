@@ -107,7 +107,7 @@ const TKO_KD = 3;               // knockdowns in one round that end it
    and so the screen that lists them is the same list the game obeys. */
 const DEFAULT_BINDS = {
   up: 'w', down: 's', left: 'a', right: 'd',
-  guard: ' ', duck: 'k', slipL: 'q', slipR: 'e', step: 'Shift', power: 'f',
+  guard: ' ', duck: 'k', slipL: 'q', slipR: 'e', step: 'Shift',
   jab: 'j', cross: 'l', upper: 'i',
   hookL: 'u', hookR: 'o', bodyL: 'n', bodyR: 'm',
   pause: 'p', guide: 'h', sound: 'v', restart: 'r',
@@ -119,8 +119,7 @@ const BIND_ROWS = [
   ['left', 'MOVE LEFT'],  ['right', 'MOVE RIGHT'],
   ['guard', 'GUARD'],     ['duck', 'DUCK'],
   ['slipL', 'SLIP LEFT'], ['slipR', 'SLIP RIGHT'],
-  ['step', 'STEP IN'],    ['power', 'POWER SHOT'],
-  ['pause', 'PAUSE'],
+  ['step', 'STEP IN'],    ['pause', 'PAUSE'],
   ['jab', 'JAB'],         ['cross', 'CROSS'],
   ['upper', 'UPPERCUT'],  ['hookL', 'LEFT HOOK'],
   ['hookR', 'RIGHT HOOK'],['bodyL', 'LEFT BODY'],
@@ -145,6 +144,7 @@ const ST_COST = 0.88;          // what every punch costs to throw, x its table p
    anything, and it lands far harder for far more wind. Let go of F without
    throwing and the wind-up is wasted. */
 const CHG_RATE  = 1 / 90;      // a second and a half from nothing to full
+const CHG_MIN   = 0.13;        // below this it was a tap, and taps are just punches
 const CHG_DMG   = 3.50;        // four and a half times the damage at the top
 const CHG_KNOCK = 2.00;        // three times the push behind it
 const CHG_STUN  = 1.20;        // and he wears it more than twice as long

@@ -514,8 +514,10 @@ function drawStatus(ctx, b, x, y, w, name, mine) {
   px(ctx, bx - 1, y + 26, bw + 2, 4, '#181820');
   px(ctx, bx, y + 27, bw, 2, '#38202a');
   if (b.chg > 0) {
+    // dim until it is past the dead zone, because until then it is a tap
+    const armed = b.chg > CHG_MIN;
     px(ctx, bx, y + 27, Math.max(1, Math.round(bw * b.chg)), 2,
-       b.chg > 0.85 ? '#ff9020' : '#e02020');
+       !armed ? '#6a2430' : (b.chg > 0.85 ? '#ff9020' : '#e02020'));
   }
 }
 
@@ -1302,12 +1304,22 @@ const RULE_PAGES = [
     '',
     'THE TANK ALSO SHRINKS AS YOU THROW: THE',
     'CEILING IT RECOVERS TO FALLS ALL FIGHT.',
+  ]},
+  { title: 'LOADING A PUNCH UP', lines: [
+    'TAP A PUNCH KEY AND IT GOES AS IT ALWAYS',
+    'DID.',
     '',
-    'HOLD F TO LOAD ONE UP - THE RED BAR UNDER',
-    'YOUR STAMINA. THROW ANY PUNCH WHILE STILL',
-    'HOLDING IT AND IT LANDS FOUR TIMES HARDER',
-    'FOR THREE TIMES THE WIND. LET GO WITHOUT',
-    'THROWING AND THE WHOLE WIND-UP IS WASTED.',
+    'HOLD IT AND IT LOADS UP - THAT IS THE RED',
+    'BAR UNDER YOUR STAMINA - AND IT THROWS THE',
+    'MOMENT YOU LET GO.',
+    '',
+    'A SECOND AND A HALF FILLS THE BAR. FULLY',
+    'LOADED, A PUNCH LANDS FOUR TIMES HARDER',
+    'FOR THREE TIMES THE WIND, SO YOU HAVE THE',
+    'BREATH FOR TWO OF THEM.',
+    '',
+    'THE LOAD BELONGS TO THE KEY YOU ARE',
+    'HOLDING. SWITCH HANDS AND IT STARTS AGAIN.',
   ]},
   { title: 'THE GUARD', lines: [
     'SPACE GUARDS: ELBOWS AS WELL AS GLOVES,',

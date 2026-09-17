@@ -36,6 +36,7 @@ class Brain {
 
   reset() {
     this.loadT = 0;
+    this.loadPunch = null;
     this.timer = 40;
     this.mode = 'circle';
     this.circleDir = Math.random() < 0.5 ? 1 : -1;
@@ -62,7 +63,9 @@ class Brain {
       return;
     }
     // plenty of wind and a bit of nerve: load the first one up
-    if (self.st > 58 && this.loadT <= 0 && Math.random() < 0.16) {
+    if (self.st > 45 && this.loadT <= 0 && Math.random() < 0.30) {
+      const heavy = ['cross', 'leftHook', 'rightHook', 'rightUpper'];
+      this.loadPunch = heavy[Math.random() * heavy.length | 0];
       this.loadT = 45 + Math.floor(Math.random() * 45);
     }
     if (foe.hurt > 2) { this.mode = 'circle'; this.timer = 14; return; }  // let them get their guard back
@@ -82,11 +85,11 @@ class Brain {
     const lx = -tz * this.circleDir, lz = tx * this.circleDir;
 
     const out = { mx: 0, mz: 0, block: false, duck: false, slip: 0, punch: null,
-                  charge: false, step: false };
+                  hold: null, step: false };
     this.bounce += 0.09;
 
     if (self.hurt > 0 || self.down || foe.down) {
-      this.combo.length = 0; this.loadT = 0; this.slipT = 0; this.bodyT = 0;
+      this.combo.length = 0; this.loadT = 0; this.loadPunch = null; this.slipT = 0; this.bodyT = 0;
       this.guardT = 12; return out;
     }
 
@@ -174,13 +177,16 @@ class Brain {
     }
 
     // ---- loading one up ----------------------------------------------------
-    // He winds a power shot up now and then, holds it while he closes, and
-    // lets it go on the frame it is ready.
+    // He holds a punch down while he closes and lets go of it on the frame it
+    // is ready, the same way the player does.
     if (this.loadT > 0) {
-      out.charge = true;
+      out.hold = this.loadPunch;
       this.loadT--;
       if (dist > 26) { out.mx = tx * 0.7; out.mz = tz * 0.7; }
       if (this.loadT > 0) return out;
+      out.punch = this.loadPunch;          // let go
+      this.loadPunch = null;
+      return out;
     }
 
     // ---- run the current combo --------------------------------------------

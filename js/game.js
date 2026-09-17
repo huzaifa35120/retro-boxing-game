@@ -6,7 +6,7 @@ const ctx = cv.getContext('2d', { alpha: false });
 ctx.imageSmoothingEnabled = false;
 
 const IDLE = { mx: 0, mz: 0, block: false, duck: false, slip: 0, punch: null,
-               charge: false, step: false };
+               hold: null, step: false };
 
 const game = {
   player: new Boxer(-30, 26, PAL_PLAYER, 'YOU', true),
@@ -869,7 +869,7 @@ const game = {
       duck: Input.down(Binds.k('duck')),
       step: Input.down(Binds.k('step')),
       slip: (Input.down(Binds.k('slipR')) ? 1 : 0) - (Input.down(Binds.k('slipL')) ? 1 : 0),
-      charge: Input.down(Binds.k('power')),
+      hold: Input.held,
       punch: Input.takePunch(),
     };
   },
@@ -1083,7 +1083,7 @@ const game = {
                 B('hookR') + ' HOOKS   ' + B('bodyL') + '/' + B('bodyR') + ' BODY',
            10, PANEL_Y + 19, mc);
       text(ctx, B('upper') + '+' + B('jab') + '/' + B('upper') + '+' + B('cross') +
-                ' UPPERCUT   ' + B('guard') + ' GUARD   ' + B('power') + ' POWER',
+                ' UPPERCUT   ' + B('guard') + ' GUARD   HOLD TO LOAD',
            10, PANEL_Y + 30, mc);
       text(ctx, 'IN A FIGHT:  P PAUSE  R RESTART  ESC LEAVE/FORFEIT', 10, PANEL_Y + 41, mc);
       return;
@@ -1122,7 +1122,7 @@ const game = {
                 B('hookR') + ' HOOKS   ' + B('bodyL') + '/' + B('bodyR') + ' BODY',
            10, PANEL_Y + 19, c);
       text(ctx, B('upper') + '+' + B('jab') + '/' + B('upper') + '+' + B('cross') +
-                ' UPPERCUT   ' + B('guard') + ' GUARD   ' + B('power') + ' POWER',
+                ' UPPERCUT   ' + B('guard') + ' GUARD   HOLD TO LOAD',
            10, PANEL_Y + 30, c);
         text(ctx, Binds.label('guide') + ' GUIDE   ' + Binds.label('sound') + ' SOUND ' + (this.sound ? 'ON ' : 'OFF') + '  P PAUSE   ' +
                 (Wire.active ? 'ESC FORFEIT' : Binds.label('restart') + ' RESET'), 10, PANEL_Y + 41, c);

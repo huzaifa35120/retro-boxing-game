@@ -50,7 +50,9 @@ Binds.load();
 const Input = {
   keys: Object.create(null),
   hits: Object.create(null),   // keys that went down this frame, for menus
-  queue: [],          // punches requested this frame
+  queue: [],          // punches let go of this frame
+  held: null,         // the punch being loaded up, if any
+  heldKey: null,
   onMeta: null,       // callback for pause / mute / help / reset
   capture: null,      // set to grab the next key press, for rebinding
 
@@ -78,7 +80,10 @@ const Input = {
       this.hits[k] = true;
 
       /* Two hands, and a key that raises them into uppercuts. Which keys
-         those are is the player's business - see Binds. */
+         those are is the player's business - see Binds.
+
+         A punch key loads on the way down and throws on the way up: tap it
+         and nothing has time to build, hold it and it does. */
       const up = this.keys[Binds.k('upper')];
       let name = null;
       if (Binds.is('jab', k))        name = up ? 'leftUpper'  : 'jab';
@@ -87,7 +92,7 @@ const Input = {
       else if (Binds.is('hookR', k)) name = 'rightHook';
       else if (Binds.is('bodyL', k)) name = 'leftBody';
       else if (Binds.is('bodyR', k)) name = 'rightBody';
-      if (name && this.queue.length < 2) this.queue.push(name);
+      if (name) { this.held = name; this.heldKey = k; }
 
       if (this.onMeta && (k === 'Escape' || k === 'y' || k === 'n' ||
                           Binds.is('pause', k) || Binds.is('guide', k) ||
@@ -98,10 +103,16 @@ const Input = {
       const raw = e.key;
       const k = raw.length === 1 ? raw.toLowerCase() : raw;
       this.keys[k] = false;
+      // let go of the punch key and the punch goes
+      if (this.held && k === this.heldKey) {
+        if (this.queue.length < 2) this.queue.push(this.held);
+        this.held = null; this.heldKey = null;
+      }
     });
 
     // don't leave keys stuck down when the window loses focus
     window.addEventListener('blur', () => {
+      this.held = null; this.heldKey = null;
       this.keys = Object.create(null);
       this.hits = Object.create(null);
     });
@@ -148,5 +159,5 @@ const Input = {
 
   takePunch() { return this.queue.length ? this.queue.shift() : null; },
 
-  flush() { this.queue.length = 0; },
+  flush() { this.queue.length = 0; this.held = null; this.heldKey = null; },
 };

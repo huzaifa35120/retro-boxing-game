@@ -32,7 +32,8 @@ class Boxer {
     this.hitDirX = 0; this.hitDirZ = 0;
     this.headX = 0; this.headY = 0; this.leanX = 0;
     this.walkT = 0; this.bob = 0; this.stepFrame = 0;
-    this.chg = 0;                     // how far a power shot is wound up
+    this.chg = 0;                     // how far a punch is wound up
+    this.holdName = null;             // and which one it is going into
     this.lastPunch = '';
     this.hp = MAX_HP; this.hpShown = MAX_HP;
     this.st = MAX_ST;
@@ -80,8 +81,10 @@ class Boxer {
   tryPunch(name) {
     const base = this.punches[name];
     if (this.hurt > 0 || this.down || !base) return false;
-    // whatever is wound up goes into this one
-    const pow = this.chg;
+    // Whatever is loaded goes into this one - but a tap is a tap. Anything
+    // under the dead zone throws as an ordinary punch at ordinary cost, and
+    // past it the power ramps up from nothing rather than jumping.
+    const pow = this.chg <= CHG_MIN ? 0 : (this.chg - CHG_MIN) / (1 - CHG_MIN);
     const cost = base.sta * (1 + pow * CHG_COST);
     if (this.st < cost) {                   // no wind left for this one
       if (this.isPlayer) Sfx.tired();
@@ -323,12 +326,14 @@ class Boxer {
     }
     this.st = clamp(this.st, 0, this.stCap);
 
-    // ---- winding up a power shot -------------------------------------------
-    // Holding costs nothing but your breath: no wind comes back while you are
-    // loaded up, and letting go without throwing wastes the lot.
-    if (intent.charge && !this.down && this.hurt <= 0 && this.st > 0) {
+    // ---- loading a punch up ------------------------------------------------
+    // The charge belongs to the key he is holding down. Swap hands and it
+    // starts again; let go and it has already gone into the punch.
+    if (intent.hold && !this.down && this.hurt <= 0 && this.st > 0) {
+      if (this.holdName !== intent.hold) { this.holdName = intent.hold; this.chg = 0; }
       this.chg = Math.min(1, this.chg + CHG_RATE);
     } else {
+      this.holdName = null;
       this.chg = 0;
     }
 
