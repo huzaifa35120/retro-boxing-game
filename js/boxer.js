@@ -318,11 +318,13 @@ class Boxer {
     const walked = moving && Math.hypot(this.x - x0, this.z - z0) > 0.25;
     if (this.stLock > 0) this.stLock--;
     const slipping = this.slipF > 0;
+    // A crouch is neutral: it costs him nothing to hold and gives him
+    // nothing back. He can stay down there as long as he likes - he just
+    // does not get his breath while he does, and the uppercut is waiting.
     const crouched = this.duckAmt > 0.5;
-    if (crouched) this.st -= ST_DUCK;
-    if (this.stLock <= 0 && !this.punch && this.hurt <= 0) {
+    if (this.stLock <= 0 && !this.punch && this.hurt <= 0 && !crouched) {
       this.st += this.blocking ? ST_REGEN_BLOCK
-               : (walked || slipping || crouched ? ST_REGEN_MOVE : ST_REGEN);
+               : (walked || slipping ? ST_REGEN_MOVE : ST_REGEN);
     }
     this.st = clamp(this.st, 0, this.stCap);
 

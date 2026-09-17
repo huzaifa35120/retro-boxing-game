@@ -54,7 +54,6 @@ const ST_SLIP = 3;             // what one slip costs
    left has no legs to hold it with - he stands up whether he likes it or not,
    and needs some back before he can go down again. */
 const GLOVE_LIFT = 2;           // the new sprite carries his hands higher
-const ST_DUCK = 0.30;          // wind burnt per frame crouched
 /* ---- stepping in ----
    A short drive off the back foot to close the gap, the way a man steps in
    behind a jab. Not a dash: a stride, and it costs a little wind. */
