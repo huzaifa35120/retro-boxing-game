@@ -43,6 +43,7 @@ class Boxer {
     this.slipAmt = 0;                 // signed: where the head is, in world units
     this.slipF = 0; this.slipCool = 0; this.slipSign = 0; this.prevSlip = 0;
     this.stepInF = 0; this.stepInCool = 0; this.prevStepIn = false;
+    this.stepDX = 0; this.stepDZ = 0;
     this.duckSpent = false;
     this.slipDX = 0; this.slipDY = 0; // ...and what that looks like on screen
     this.stats = Boxer.newStats();
@@ -269,8 +270,9 @@ class Boxer {
       const m = Math.hypot(mx, mz);
       if (m > 0.01) {
         mx /= m; mz /= m;
-        this.x += mx * sp;
-        this.z += mz * sp;
+        // a dash replaces his walk rather than adding to it, so one covers
+        // the same ground whether or not he is holding a direction
+        if (this.stepInF <= 0) { this.x += mx * sp; this.z += mz * sp; }
         moving = sp > 0.3;
       }
       // small step into a punch
@@ -279,19 +281,26 @@ class Boxer {
         if (d > 24) { this.x += Math.cos(this.ang) * 0.45; this.z += Math.sin(this.ang) * 0.45; }
       }
 
-      // ---- stepping in ----------------------------------------------------
-      // A stride off the back foot to close the gap. It costs a little wind,
-      // will not start one on top of another, and stops short of walking
-      // through him.
+      // ---- the dash --------------------------------------------------------
+      // A drive off the back foot in whatever direction he is pushing - in
+      // behind a jab, or straight back out of range. With no direction held
+      // he goes at the other man. It costs real wind either way, will not
+      // start one on top of another, and a dash inwards stops short rather
+      // than walking through him.
       if (this.stepInCool > 0) this.stepInCool--;
       if (this.stepInF > 0) {
         this.stepInF--;
-        if (Math.hypot(dx, dz) > 20) {
-          this.x += Math.cos(this.ang) * STEPIN_SPEED;
-          this.z += Math.sin(this.ang) * STEPIN_SPEED;
+        const d = Math.hypot(dx, dz) || 1;
+        const closing = (this.stepDX * dx + this.stepDZ * dz) / d > 0;
+        if (!closing || d > 20) {
+          this.x += this.stepDX * STEPIN_SPEED;
+          this.z += this.stepDZ * STEPIN_SPEED;
         }
       } else if (intent.step && !this.prevStepIn && this.stepInCool <= 0 &&
                  this.st >= ST_STEPIN && this.duckAmt < 0.5) {
+        const m = Math.hypot(intent.mx, intent.mz);
+        if (m > 0.01) { this.stepDX = intent.mx / m; this.stepDZ = intent.mz / m; }
+        else { this.stepDX = Math.cos(this.ang); this.stepDZ = Math.sin(this.ang); }
         this.stepInF = STEPIN_FRAMES;
         this.stepInCool = STEPIN_COOL;
         this.st -= ST_STEPIN;

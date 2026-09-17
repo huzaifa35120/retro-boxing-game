@@ -1078,7 +1078,7 @@ const game = {
       const B = a => Binds.label(a);
       text(ctx, B('up') + B('left') + B('down') + B('right') + ' MOVE   ' + B('duck') +
                 ' DUCK   ' + B('slipL') + '/' + B('slipR') + ' SLIP   ' + B('step') +
-                ' STEP IN', 10, PANEL_Y + 8, mc);
+                '+WASD DASH', 10, PANEL_Y + 8, mc);
       text(ctx, B('jab') + ' JAB   ' + B('cross') + ' CROSS   ' + B('hookL') + '/' +
                 B('hookR') + ' HOOKS   ' + B('bodyL') + '/' + B('bodyR') + ' BODY',
            10, PANEL_Y + 19, mc);
@@ -1117,7 +1117,7 @@ const game = {
       const B = a => Binds.label(a);
       text(ctx, B('up') + B('left') + B('down') + B('right') + ' MOVE   ' + B('duck') +
                 ' DUCK   ' + B('slipL') + '/' + B('slipR') + ' SLIP   ' + B('step') +
-                ' STEP IN', 10, PANEL_Y + 8, c);
+                '+WASD DASH', 10, PANEL_Y + 8, c);
       text(ctx, B('jab') + ' JAB   ' + B('cross') + ' CROSS   ' + B('hookL') + '/' +
                 B('hookR') + ' HOOKS   ' + B('bodyL') + '/' + B('bodyR') + ' BODY',
            10, PANEL_Y + 19, c);

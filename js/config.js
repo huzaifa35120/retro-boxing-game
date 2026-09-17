@@ -54,13 +54,15 @@ const ST_SLIP = 3;             // what one slip costs
    left has no legs to hold it with - he stands up whether he likes it or not,
    and needs some back before he can go down again. */
 const GLOVE_LIFT = 2;           // the new sprite carries his hands higher
-/* ---- stepping in ----
-   A short drive off the back foot to close the gap, the way a man steps in
-   behind a jab. Not a dash: a stride, and it costs a little wind. */
-const STEPIN_SPEED = 1.7;
+/* ---- the dash ----
+   A drive off the back foot in whatever direction he is pushing: in behind a
+   jab, or straight back out of range. Legs are expensive - it costs about
+   what a cross costs, so a man who dashes about is a man with nothing left
+   to punch with. */
+const STEPIN_SPEED = 2.6;
 const STEPIN_FRAMES = 8;
 const STEPIN_COOL = 26;
-const ST_STEPIN = 3;
+const ST_STEPIN = 10;
 
 /* The board runs a hundred deep but only ever draws a page of it. */
 const BOARD_MAX = 100;
@@ -118,7 +120,7 @@ const BIND_ROWS = [
   ['left', 'MOVE LEFT'],  ['right', 'MOVE RIGHT'],
   ['guard', 'GUARD'],     ['duck', 'DUCK'],
   ['slipL', 'SLIP LEFT'], ['slipR', 'SLIP RIGHT'],
-  ['step', 'STEP IN'],    ['pause', 'PAUSE'],
+  ['step', 'DASH'],       ['pause', 'PAUSE'],
   ['jab', 'JAB'],         ['cross', 'CROSS'],
   ['upper', 'UPPERCUT'],  ['hookL', 'LEFT HOOK'],
   ['hookR', 'RIGHT HOOK'],['bodyL', 'LEFT BODY'],
