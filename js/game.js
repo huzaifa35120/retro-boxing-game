@@ -31,13 +31,11 @@ const game = {
   roomRow: 0, roomCode: '', roomSlot: 0, roomTop: 0,
   trainSel: 0, bagMode: false, bag: new Bag(),
   setSel: 0, bindRow: 0, bindWait: false, bindMsg: '',
-  boardDiv: DEFAULT_WEIGHT,
+  boardDiv: DEFAULT_WEIGHT, boardTop: 0,
   rulePage: 0,
   quickOn: false, quickT: 0, quickMsg: '',
-  tour: null, tourDiv: DEFAULT_WEIGHT, tourNames: {}, tourMsg: '', tourAt: 0,
   fighterSlot: -1, playerName: 'YOU', botName: 'OPPONENT',
   askQuit: false, forfeit: null,        // 'a' or 'b' - which man walked out
-  autoBout: false,                      // a tournament bout is opening itself
   crash: '', crashes: 0,                // set if a frame ever threw
 
   /* the bout ------------------------------------------------------------- */
@@ -67,7 +65,7 @@ const game = {
   },
 
   mpItems() {
-    return ['QUICK FIGHT', 'FIGHT ROOMS', 'SUNDAY TOURNAMENT', 'LEADERBOARDS',
+    return ['QUICK FIGHT', 'FIGHT ROOMS', 'LEADERBOARDS',
             Net.signedIn() ? 'MY ACCOUNT' : 'SIGN IN / SIGN UP'];
   },
 
@@ -353,12 +351,13 @@ const game = {
       Input.startTyping('', 'name');
       this.screen = 'auth';
     };
-    if (this.mpSel === 4) {
+    if (this.mpSel === 3) {
       if (Net.signedIn()) this.screen = 'account'; else needAccount();
       return;
     }
-    if (this.mpSel === 3) {
+    if (this.mpSel === 2) {
       this.boardDiv = this.weightIdx;
+      this.boardTop = 0;
       Net.wantBoard(this.boardDiv);
       this.screen = 'board';
       return;
@@ -375,10 +374,6 @@ const game = {
       Net.wantRooms(true);
       Input.startTyping('', 'name');
       this.screen = 'rooms';
-    } else {
-      this.tourDiv = this.weightIdx; this.tourMsg = ''; this.autoBout = false;
-      this.wantTourney(true);
-      this.screen = 'tourney';
     }
   },
 
@@ -405,142 +400,6 @@ const game = {
     Net.findCasual(id)
       .then(room => { if (room && this.quickOn) { this.quickOn = false; Wire.attach(room, f); } })
       .catch(e => { this.quickMsg = e.message; this.quickOn = false; });
-  },
-
-  /* ------------------------------------------------------------ tournament */
-  wantTourney(force) {
-    if (!force && this.tourAt && Date.now() - this.tourAt < 8000) return;
-    this.tourAt = Date.now();
-    Net.pullTournament(this.tourDiv)
-      .then(t => {
-        this.tour = t;
-        // there is no clock on the server, so whoever is watching nudges the
-        // draw past each round time and lets the walkovers fall out
-        if (t && t.status !== 'done' && Date.now() >= Date.parse(t.starts_at)) {
-          return Net.settleTournament(t.id)
-            .then(() => Net.pullTournament(this.tourDiv))
-            .then(t2 => { this.tour = t2; return t2; })
-            .catch(() => t);
-        }
-        return t;
-      })
-      .then(t => this.tourFighters(t))
-      .catch(e => { this.tourMsg = e.message; this.tour = null; });
-  },
-
-  async tourFighters(t) {
-    this.tourNames = {};
-    if (!t || !t.bouts) return;
-    const ids = [];
-    for (const b of t.bouts) { if (b.red) ids.push(b.red); if (b.blue) ids.push(b.blue); }
-    if (!ids.length) return;
-    const rows = await Net.call('/rest/v1/fighters?select=id,name&id=in.(' + ids.join(',') + ')');
-    for (const r of rows || []) this.tourNames[r.id] = r;
-  },
-
-  stepTourney() {
-    if (Wire.status === 'ready') { this.startOnlineFight(); return; }
-    this.wantTourney();                 // throttled inside; keeps the draw fresh
-    this.autoStart();
-    const dir = (Input.any('d', 'ArrowRight') ? 1 : 0) - (Input.any('a', 'ArrowLeft') ? 1 : 0);
-    if (dir) {
-      this.tourDiv = (this.tourDiv + dir + WEIGHTS.length) % WEIGHTS.length;
-      this.tour = null; this.tourMsg = ''; this.autoBout = false;
-      this.wantTourney(true);
-    }
-    if (Input.any('b', 'Escape', 'Backspace')) { this.screen = 'multiplayer'; return; }
-    if (!Input.any(' ', 'Enter')) return;
-
-    const id = this.roomFighterId();
-    if (!this.tour) {
-      Net.openTournament(this.tourDiv)
-        .then(() => this.wantTourney(true))
-        .catch(e => { this.tourMsg = e.message; });
-      return;
-    }
-    if (!id) { this.tourMsg = 'MAKE A FIGHTER FIRST'; return; }
-    const v = this.tourView();
-    if (v && v.canCheck) {
-      this.tourMsg = '';
-      Net.checkIn(this.tour.id, id, v.myRound)
-        .then(() => this.wantTourney(true))
-        .catch(e => { this.tourMsg = e.message; });
-    } else {
-      this.wantTourney(true);
-    }
-  },
-
-  /* Marked in and the clock has come round: nobody should have to press
-     anything for the bell. Both men do this, the first opens the room and
-     the second walks into it. */
-  autoStart() {
-    if (this.autoBout || Wire.room) return;
-    const v = this.tourView();
-    if (!v || !v.ready) return;
-    const mine = this.myBout();
-    if (!mine) return;
-    this.autoBout = true;
-    Net.startBout(mine.id)
-      .then(room => { if (room) Wire.attach(room, this.roomFighter()); })
-      .catch(e => { this.tourMsg = e.message; this.autoBout = false; });
-  },
-
-  /* When each round boxes. Quarters on the hour, semis at half past, the
-     final on the hour after that. */
-  roundAt(round) {
-    return Date.parse(this.tour.starts_at) + (round - 1) * 30 * 60000;
-  },
-
-  checkedFor(id, round) {
-    return (this.tour.checked || []).some(c => c.fighter === id && c.round === round);
-  },
-
-  /* what the tournament screen needs to say */
-  tourView() {
-    const t = this.tour;
-    if (!t) return null;
-    const id = this.roomFighterId();
-    const start = Date.parse(t.starts_at);
-    const inDraw = (t.bouts || []).some(b => b.red === id || b.blue === id);
-    // the bout he is waiting on, whether or not it has both names in it yet
-    const pending = (t.bouts || []).find(b => !b.winner && (b.red === id || b.blue === id));
-    const mine = this.myBout();
-    const round = pending ? pending.round : 0;
-    const at = round ? this.roundAt(round) : 0;
-    const left = at - Date.now();
-    const checked = round ? this.checkedFor(id, round) : false;
-    const open = !!round && !checked && left <= CHECKIN_OPEN && left > 0;
-    const ready = !!mine && checked && left <= 0;
-
-    let hint;
-    if (t.status === 'done') {
-      hint = t.winner && t.winner === id ? 'YOU WON IT - CHAMPION FOR THE WEEK'
-           : inDraw ? 'THE TOURNAMENT IS OVER' : 'THE TOURNAMENT IS OVER';
-    }
-    else if (!inDraw) hint = 'YOU ARE NOT IN THIS DRAW';
-    else if (!pending) hint = 'YOU ARE OUT OF THE TOURNAMENT';
-    else if (ready) hint = 'STARTING YOUR BOUT';
-    else if (!mine && left <= 0) hint = 'WAITING ON THE OTHER BOUT';
-    else if (checked) hint = 'MARKED IN - YOUR BOUT STARTS ' + countdownWords(left);
-    else if (open) hint = 'MARK IN - YOUR BOUT STARTS ' + countdownWords(left);
-    else if (left > 0) hint = 'MARKING IN OPENS ' + countdownWords(left - CHECKIN_OPEN);
-    else hint = 'YOU DID NOT MARK IN';
-
-    return Object.assign({}, t, {
-      isIn: (f, r) => this.checkedFor(f, r),
-      when: new Date(start).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' }).toUpperCase(),
-      countdown: countdownWords(start - Date.now()),
-      myRound: round, myBoutAt: at, msLeft: left,
-      canCheck: open, ready, hint,
-      action: open ? 'MARK IN' : 'REFRESH',
-    });
-  },
-
-  myBout() {
-    const id = this.roomFighterId();
-    if (!id || !this.tour) return null;
-    return (this.tour.bouts || []).find(b => !b.winner && b.red && b.blue &&
-                                             (b.red === id || b.blue === id)) || null;
   },
 
   /* ------------------------------------------------------- fight rooms */
@@ -622,10 +481,15 @@ const game = {
     const dir = (Input.any('d', 'ArrowRight') ? 1 : 0) - (Input.any('a', 'ArrowLeft') ? 1 : 0);
     if (dir) {
       this.boardDiv = (this.boardDiv + dir + WEIGHTS.length) % WEIGHTS.length;
+      this.boardTop = 0;
       Net.board = null;
       Net.boardDivision = -1;
       Net.wantBoard(this.boardDiv);
     }
+    const n = (Net.board || []).length;
+    const move = (Input.any('s', 'ArrowDown') ? 1 : 0) - (Input.any('w', 'ArrowUp') ? 1 : 0);
+    if (move) this.boardTop = clamp(this.boardTop + move * BOARD_ROWS, 0,
+                                    Math.max(0, n - BOARD_ROWS));
     if (Input.any('b', 'Escape', 'Backspace', ' ', 'Enter')) this.screen = 'multiplayer';
   },
 
@@ -1042,7 +906,6 @@ const game = {
         case 'mpsoon':      return this.stepSoon();
         case 'rooms':       return this.stepRooms();
         case 'quick':       return this.stepQuick();
-        case 'tourney':     return this.stepTourney();
         case 'rules':       return this.stepRules();
         case 'board':       return this.stepBoard();
         case 'auth':        return this.stepAuth();
@@ -1189,10 +1052,6 @@ const game = {
         case 'quick':
           drawQuick(ctx, this.roomFighter(), this.quickOn,
                     Math.floor(this.quickT / 60), this.quickMsg); break;
-        case 'tourney':
-          drawTourney(ctx, this.tourDiv, this.tourView(), this.tourNames,
-                      this.roomFighterId(), this.tourMsg,
-                      (this.frames >> 4) & 1); break;
         case 'mpsoon':
           drawSoon(ctx, MP_PAGES[0].title, MP_PAGES[0].lines); break;
         case 'rooms':
@@ -1201,7 +1060,7 @@ const game = {
         case 'rules':
           drawRules(ctx, this.rulePage); break;
         case 'board':
-          drawBoard(ctx, this.boardDiv, Net.board, Net.busy, Net.error, Net.champ); break;
+          drawBoard(ctx, this.boardDiv, Net.board, Net.busy, Net.error, this.boardTop); break;
         case 'auth':
           drawAuth(ctx, this.authEmail, this.authPass, this.authRow,
                    (this.frames >> 4) & 1, this.authMsg, Net.busy);
@@ -1251,7 +1110,6 @@ const game = {
 
     px(ctx, 0, PANEL_Y, VIEW_W, VIEW_H - PANEL_Y, '#101828');
     const c = '#181820';
-    const AL = KEY.L, AR = KEY.R, AU = KEY.U, AD = KEY.D;
     if (this.page === 0) {
       drawBox(ctx, 2, PANEL_Y + 2, VIEW_W - 4, 56);
       const B = a => Binds.label(a);

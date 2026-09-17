@@ -31,7 +31,7 @@ begin
 
   -- you only ever have one room open, and the old one goes away
   delete from public.rooms
-   where host = auth.uid() and status in ('open', 'full') and bout is null;
+   where host = auth.uid() and status in ('open', 'full');
 
   loop
     c := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 4));
@@ -54,7 +54,6 @@ create or replace function public.report_match(
 returns void language plpgsql security definer set search_path = public as $$
 declare
   r public.rooms;
-  b public.tourney_bouts;
   ko boolean;
 begin
   select * into r from public.rooms where id = p_room;
@@ -69,8 +68,7 @@ begin
   ko := p_method in ('ko', 'tko');
 
   insert into public.matches (division, red, blue, winner, method, rounds, is_title)
-  values (r.division, r.host_fighter, r.guest_fighter, p_winner, p_method, p_rounds,
-          r.bout is not null);
+  values (r.division, r.host_fighter, r.guest_fighter, p_winner, p_method, p_rounds, false);
 
   if p_winner is null then
     update public.fighters set draws = draws + 1
@@ -84,11 +82,6 @@ begin
      where id in (r.host_fighter, r.guest_fighter) and id <> p_winner;
   end if;
 
-  if r.bout is not null then
-    select * into b from public.tourney_bouts where id = r.bout;
-    update public.tourney_bouts set winner = coalesce(p_winner, b.red) where id = r.bout;
-    perform public.settle_tournament(b.tourney);
-  end if;
 
   -- keep it briefly so the other player's report is a clean no-op, then sweep
   update public.rooms set status = 'done' where id = r.id;

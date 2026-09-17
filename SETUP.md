@@ -80,48 +80,21 @@ Then: **MULTIPLAYER → FIGHT ROOMS**. One player picks HOST A ROOM and reads ou
 the four-letter code; the other types it into JOIN CODE. Both fighters have to
 be in the same division. Once connected the fight starts on its own.
 
-## 7. Rankings, the belt and the Sunday tournament
+## 7. Rankings and the leaderboard
 
 Run these, in order:
 
-1. **`supabase/titles.sql`** — the top-10 rankings and one champion per
-   division. (It also drops the old fight-card tables, which are gone.)
-2. **`supabase/tournament.sql`** — the Sunday draw.
-3. **`supabase/matchmaking.sql`** — quick-fight queue, tournament bout rooms,
-   and result reporting that advances the draw.
-4. **`supabase/rooms-clean.sql`** — deletes closed rooms instead of leaving
+1. **`supabase/titles.sql`** — the top-100 rankings per division. (It also
+   drops the old fight-card tables, which are gone.)
+2. **`supabase/matchmaking.sql`** — the quick-fight queue.
+3. **`supabase/rooms-clean.sql`** — deletes closed rooms instead of leaving
    them in the table forever, and clears out the ones already there.
-5. **`supabase/queue-clean.sql`** — drops players out of the quick-fight queue
+4. **`supabase/queue-clean.sql`** — drops players out of the quick-fight queue
    if they stop searching, so nobody is matched with a ghost.
-6. **`supabase/tournament-rounds.sql`** — puts the tournament on a timetable:
-   quarter finals 19:00, semi finals 19:30, final 20:00. Marking in opens ten
-   minutes before each round and shuts when it starts.
+5. **`supabase/drop-tournament.sql`** — result reporting, and the teardown for
+   the Sunday draw and the belt. Run it last. On a database that never had
+   them it simply defines the reporting and skips the rest.
 
-To satisfy yourself the tournament works, run **`supabase/test-tournament.sql`**
-in the SQL editor. It builds eight fighters, opens a draw, winds the clock past
-each round and boxes the whole thing out through the real functions, checking
-walkovers, seeding, the belt and the refusals along the way. Everything happens
-inside a transaction that rolls back, so it leaves nothing behind. A run that
-ends in `ALL CHECKS PASSED`, `EDGE CHECKS PASSED` and `WALKOVER CHAIN PASSED`
-means the whole thing works.
-
-### Running a tournament each week
-
-`open_tournament(division)` draws the top 8 for the coming Sunday, and
-`settle_tournament(id)` handles walkovers and advances winners. The game calls
-both as players use the screen, so nothing else is strictly needed — but to
-have draws appear on their own, enable `pg_cron` (Database → Extensions) and:
-
-```sql
--- open the draw Saturday morning Sydney time
-select cron.schedule('draw', '0 22 * * 5', $$
-  select public.open_tournament(d::smallint) from generate_series(0,5) d;
-$$);
--- close the doors and hand out walkovers at 7pm Sunday Sydney
-select cron.schedule('doors', '0 8 * * 0', $$
-  select public.settle_tournament(id) from public.tournaments where status = 'open';
-$$);
-```
 
 ## What still needs building
 

@@ -939,7 +939,7 @@ function drawNewFighter(ctx, draft, row, blink) {
   px(ctx, x + w - 78, y + 22, 62, 1, '#c0c0cc');
   drawFighterPreview(ctx, draft, x + w - 47, y + h - 26, 'down');
 
-  ctext(ctx, 'TYPE NAME   ' + KEY.U + KEY.D + ' ROW   ' + KEY.L + KEY.R + ' CHANGE   ESC BACK', CX, y + h + 6, DARK);
+  ctext(ctx, 'TYPE NAME   W/S ROW   A/D CHANGE   ESC BACK', CX, y + h + 6, DARK);
 }
 
 /* ---- one you already have ---- */
@@ -1052,7 +1052,7 @@ function drawAuth(ctx, email, pass, row, blink, msg, busy) {
       ctext(ctx, note.slice(cut).trim().slice(0, per), CX, y + h - 10, '#c02828');
     }
   }
-  ctext(ctx, KEY.U + KEY.D + ' ROW    SPACE CONFIRM    ESC BACK', CX, y + h + 6, DARK);
+  ctext(ctx, 'W/S ROW    SPACE CONFIRM    ESC BACK', CX, y + h + 6, DARK);
 }
 
 function drawAuthNote(ctx, y) {
@@ -1073,45 +1073,19 @@ function drawSignedIn(ctx, handle, fighters) {
 
 /* -------------------------------------------------------- leaderboard */
 
-/* The belt sits above the rankings, in gold, and taller than the rest. */
-function drawChampBanner(ctx, x, y, w, champ) {
-  const h = 22;
-  px(ctx, x, y, w, h, '#8a6a10');
-  px(ctx, x + 1, y + 1, w - 2, h - 2, '#e8b81c');
-  px(ctx, x + 1, y + 1, w - 2, 2, '#ffe87a');
-  px(ctx, x + 1, y + h - 3, w - 2, 2, '#a07c10');
-  px(ctx, x + 3, y + 3, w - 6, h - 6, '#f0c832');
-  px(ctx, x + 3, y + 3, w - 6, 1, '#fff0a0');
-
-  if (!champ) {
-    ctext(ctx, 'THE TITLE IS VACANT', CX, y + 4, '#5a4208');
-    ctext(ctx, 'THE SUNDAY TOURNAMENT WINNER TAKES IT', CX, y + 13, '#7a5c10');
-    return;
-  }
-  text(ctx, 'CHAMPION', x + 8, y + 4, '#5a4208');
-  text(ctx, champ.handle, x + 108, y + 4, '#7a5c10');
-  swatch(ctx, x + 8, y + 13, 9, 7, SHORTS[champ.shorts].trunk, SHORTS[champ.shorts].trunkDk);
-  text(ctx, champ.name, x + 22, y + 13, '#3a2c04');
-  text(ctx, COUNTRIES[champ.country], x + 96, y + 13, '#5a4208');
-  text(ctx, champ.wins + '-' + champ.losses + '-' + champ.draws, x + 140, y + 13, '#3a2c04');
-  text(ctx, champ.win_pct + '%', x + 222, y + 13, '#3a2c04');
-  text(ctx, 'KO ' + champ.ko_for, x + 288, y + 13, '#5a4208');
-}
-
-function drawBoard(ctx, division, rows, busy, err, champ) {
+function drawBoard(ctx, division, rows, busy, err, top) {
   const x = 14, y = 18, w = VIEW_W - 28, h = 152;
   drawBox(ctx, x, y, w, h);
   ctext(ctx, WEIGHTS[division].name, CX, y + 5, DARK);
   arrows(ctx, x + 14, y + 5, w - 40, true);
-
-  if (!busy && !err && rows) drawChampBanner(ctx, x + 8, y + 15, w - 16, champ);
+  px(ctx, x + 10, y + 15, w - 20, 1, DARK);
 
   const nx = x + 40, cx2 = x + 118, rx = x + 168, px3 = x + 250, kx = x + 316;
-  text(ctx, 'CONTENDERS', nx - 24, y + 41, DARK);
-  text(ctx, 'FROM', cx2, y + 41, DARK);
-  text(ctx, 'RECORD', rx, y + 41, DARK);
-  text(ctx, 'WIN %', px3, y + 41, DARK);
-  text(ctx, 'KO', kx, y + 41, DARK);
+  text(ctx, 'CONTENDERS', nx - 24, y + 22, DARK);
+  text(ctx, 'FROM', cx2, y + 22, DARK);
+  text(ctx, 'RECORD', rx, y + 22, DARK);
+  text(ctx, 'WIN %', px3, y + 22, DARK);
+  text(ctx, 'KO', kx, y + 22, DARK);
 
   if (busy) { ctext(ctx, 'LOADING...', CX, y + 60, '#585868'); }
   else if (err) {
@@ -1123,18 +1097,26 @@ function drawBoard(ctx, division, rows, busy, err, champ) {
   } else if (!rows.length) {
     ctext(ctx, 'NOBODY HAS FOUGHT IN THIS DIVISION YET', CX, y + 60, '#585868');
   } else {
-    rows.forEach((r, i) => {
-      const ry = y + 51 + i * 10;
-      text(ctx, String(i + 1).padStart(2) + '.', x + 16, ry, DARK);
+    // only the page he is looking at is ever drawn, however deep it runs
+    const shown = Math.min(BOARD_ROWS, rows.length - top);
+    for (let i = 0; i < shown; i++) {
+      const r = rows[top + i], ry = y + 34 + i * 10;
+      text(ctx, String(top + i + 1).padStart(3) + '.', x + 10, ry, DARK);
       swatch(ctx, nx - 12, ry, 7, 7, SHORTS[r.shorts].trunk, SHORTS[r.shorts].trunkDk);
       text(ctx, r.name, nx, ry, DARK);
       text(ctx, COUNTRIES[r.country], cx2, ry, DARK);
       text(ctx, r.wins + '-' + r.losses + '-' + r.draws, rx, ry, DARK);
       text(ctx, r.win_pct + '%', px3, ry, DARK);
       text(ctx, String(r.ko_for), kx, ry, DARK);
-    });
+    }
+    px(ctx, x + 10, y + h - 16, w - 20, 1, DARK);
+    const tag = (top + 1) + '-' + (top + shown) + ' OF ' + rows.length;
+    text(ctx, tag, x + w - 14 - textW(tag), y + h - 11, '#585868');
+    if (top > 0) text(ctx, '^', x + w - 20, y + 34, '#585868');
+    if (top + shown < rows.length) text(ctx, 'v', x + w - 20, y + 34 + (shown - 1) * 10, '#585868');
+    text(ctx, 'W/S SCROLL', x + 14, y + h - 11, '#585868');
   }
-  ctext(ctx, KEY.L + KEY.R + ' DIVISION    B BACK', CX, y + h + 6, DARK);
+  ctext(ctx, 'A/D DIVISION    B BACK', CX, y + h + 6, DARK);
 }
 
 /* ---------------------------------------------------------- fight rooms */
@@ -1232,7 +1214,7 @@ function drawRooms(ctx, fighter, row, code, blink, list, top) {
   } else {
     ctext(ctx, 'BOTH FIGHTERS MUST BE THE SAME DIVISION', CX, y + 162, '#585868');
   }
-  ctext(ctx, 'SPACE CONFIRM    ' + KEY.U + KEY.D + ' MOVE    ESC BACK', CX, y + 173, DARK);
+  ctext(ctx, 'SPACE CONFIRM    W/S MOVE    ESC BACK', CX, y + 173, DARK);
 }
 
 
@@ -1363,37 +1345,19 @@ const RULE_PAGES = [
     'AND THE RESULT IS WRITTEN BY THE SERVER,',
     'NOT BY EITHER MAN.',
   ]},
-  { title: 'RANKINGS AND THE BELT', lines: [
-    'EACH DIVISION RANKS ITS TOP 10 ON WIN',
+  { title: 'THE RANKINGS', lines: [
+    'EACH DIVISION RANKS ITS TOP 100 ON WIN',
     'PERCENTAGE. ONE BOUT MINIMUM TO BE RANKED.',
-    'THE CHAMPION SITS ABOVE THE TEN.',
     '',
-    'THE BELT IS WON IN THE SUNDAY TOURNAMENT',
-    'AND HELD FOR THE WEEK, UNTIL THE NEXT ONE.',
+    'THE BOARD SHOWS TEN AT A TIME - W AND S',
+    'SCROLL THROUGH THE REST OF IT.',
     '',
     'EVERY FIGHT BETWEEN TWO PLAYERS COUNTS',
     'TOWARDS YOUR RANKING - QUICK FIGHTS AND',
-    'ROOMS JUST THE SAME AS THE TOURNAMENT.',
+    'ROOMS JUST THE SAME.',
     '',
-    'SPARRING AGAINST THE COMPUTER NEVER DOES.',
-  ]},
-  { title: 'THE SUNDAY TOURNAMENT', lines: [
-    'SUNDAY NIGHT, SYDNEY TIME, EVERY WEEK:',
-    'QUARTER FINALS 7:00, SEMIS 7:30,',
-    'THE FINAL AT 8:00.',
-    '',
-    'THE TOP 8 OF EACH DIVISION ARE DRAWN,',
-    'SEEDED 1V8, 4V5, 2V7, 3V6 - SO THE TOP TWO',
-    'CAN ONLY MEET IN THE FINAL.',
-    '',
-    'THE MARK IN BUTTON APPEARS ON YOUR BOUT',
-    'TEN MINUTES BEFORE IT BOXES, AND GOES',
-    'AGAIN ON THE HALF HOUR. PRESS IT OR YOU',
-    'FORFEIT AND YOUR MAN WALKS THROUGH.',
-    '',
-    'ONCE BOTH OF YOU HAVE MARKED IN THE FIGHT',
-    'OPENS ITSELF ON THE BELL. YOU DO NOT HAVE',
-    'TO PRESS ANYTHING ELSE.',
+    'SPARRING AGAINST THE COMPUTER NEVER DOES,',
+    'AND NEITHER DOES THE HEAVY BAG.',
   ]},
   { title: 'FINDING A FIGHT', lines: [
     'QUICK FIGHT PUTS YOU IN A QUEUE AND',
@@ -1469,76 +1433,6 @@ function drawQuick(ctx, fighter, searching, secs, msg) {
   }
   if (msg) ctext(ctx, msg, CX, y + h - 12, '#c02828');
   ctext(ctx, searching ? 'B STOP SEARCHING' : 'B BACK', CX, y + h + 6, DARK);
-}
-
-/* ------------------------------------------------------------ tournament */
-
-function boutName(fighters, id) {
-  if (!id) return '---';
-  const f = fighters[id];
-  // the bracket is narrow; eight letters is enough to know who it is
-  return f ? f.name.slice(0, 8) : '?';
-}
-
-function drawTourney(ctx, division, t, fighters, mine, msg, blink) {
-  const x = 14, y = 16, w = VIEW_W - 28, h = 178;
-  drawBox(ctx, x, y, w, h);
-  ctext(ctx, WEIGHTS[division].name + '  SUNDAY TOURNAMENT', CX, y + 4, DARK);
-  arrows(ctx, x + 14, y + 4, w - 40, true);
-  px(ctx, x + 10, y + 14, w - 20, 1, DARK);
-
-  if (!t) {
-    ctext(ctx, 'NO DRAW YET FOR THIS DIVISION', CX, y + 60, '#585868');
-    ctext(ctx, 'IT NEEDS AT LEAST TWO RANKED FIGHTERS', CX, y + 72, '#585868');
-    ctext(ctx, 'SPACE TO OPEN THE DRAW', CX, y + 92, DARK);
-    ctext(ctx, KEY.L + KEY.R + ' DIVISION    B BACK', CX, y + h - 12, DARK);
-    return;
-  }
-
-  ctext(ctx, t.when, CX, y + 20, DARK);
-  ctext(ctx, t.status === 'done' ? 'FINISHED'
-           : t.status === 'live' ? 'UNDER WAY' : t.countdown, CX, y + 30, '#585868');
-
-  const cols = [x + 20, x + 140, x + 254];
-  ['QUARTERS 19:00', 'SEMIS 19:30', 'FINAL 20:00'].forEach((lab, i) =>
-    text(ctx, lab, cols[i], y + 44, DARK));
-
-  const top = y + 54, span = 92;
-  for (const b of (t.bouts || [])) {
-    const cx2 = cols[b.round - 1];
-    const rows = b.round === 1 ? 4 : (b.round === 2 ? 2 : 1);
-    const gap = span / rows;
-    const by = Math.round(top + b.slot * gap + (gap - 18) / 2);
-    px(ctx, cx2 - 3, by - 2, 108, 21, '#eef0f6');
-    px(ctx, cx2 - 3, by - 2, 108, 1, '#c8ccd8');
-
-    const red = boutName(fighters, b.red), blue = boutName(fighters, b.blue);
-    text(ctx, red, cx2, by, b.winner && b.winner === b.red ? '#1a7a2a' : DARK);
-    text(ctx, blue, cx2, by + 10, b.winner && b.winner === b.blue ? '#1a7a2a' : DARK);
-
-    // a dot against each man who has marked in for this round
-    if (t.isIn) {
-      if (b.red && t.isIn(b.red, b.round))  px(ctx, cx2 + 51, by + 2, 3, 3, '#1a7a2a');
-      if (b.blue && t.isIn(b.blue, b.round)) px(ctx, cx2 + 51, by + 12, 3, 3, '#1a7a2a');
-    }
-    if (b.walkover) text(ctx, 'W/O', cx2 + 80, by + 5, '#a06010');
-
-    const isMine = mine && (b.red === mine || b.blue === mine) && !b.winner;
-    if (isMine) text(ctx, '>', cx2 - 11, by + 5, '#c02828');
-
-    // the door is open on this bout, so put the button on it
-    if (isMine && t.canCheck && b.round === t.myRound) {
-      const bx = cx2 + 59, bw = 45;
-      px(ctx, bx, by + 2, bw, 13, blink ? '#1a7a2a' : '#12561e');
-      px(ctx, bx, by + 2, bw, 1, '#48c060');
-      text(ctx, 'MARK IN', bx + 2, by + 5, '#ffffff');
-    }
-  }
-
-  px(ctx, x + 10, y + 150, w - 20, 1, DARK);
-  ctext(ctx, msg || t.hint, CX, y + 154, msg ? '#c02828' : DARK);
-  ctext(ctx, KEY.L + KEY.R + ' DIVISION   SPACE ' + (t.action || 'REFRESH') + '   B BACK',
-        CX, y + 166, DARK);
 }
 
 

@@ -63,6 +63,10 @@ const STEPIN_FRAMES = 8;
 const STEPIN_COOL = 26;
 const ST_STEPIN = 3;
 
+/* The board runs a hundred deep but only ever draws a page of it. */
+const BOARD_MAX = 100;
+const BOARD_ROWS = 10;
+
 const BAG_HIT_R = 15;          // how close a glove has to be to find the bag
 const BAG_SEP = 17;            // and how close he can stand to it
 
@@ -97,7 +101,6 @@ const TKO_KD = 3;               // knockdowns in one round that end it
    hooks are tuned to match the cross exactly. Uppercuts hit hardest and cost
    the most, but have to be thrown from close range.
 --------------------------------------------------------------------------- */
-const KEY = { L: 'J', R: 'L', U: 'I', D: 'K' };
 
 /* ---- controls ----
    Every key the game reads, in one place, so a player can move them around

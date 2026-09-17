@@ -210,8 +210,8 @@ const Net = {
      first and put a fresh row in. */
   async pushFighter(slot, f) {
     await this.dropFighter(slot).catch(() => {});
-    // ask for the row back: its id is what rooms, quick fights and the
-    // tournament all need, and without it the game thinks you have no fighter
+    // ask for the row back: its id is what the rooms and the quick-fight
+    // queue need, and without it the game thinks
     const rows = await this.call('/rest/v1/fighters', {
       method: 'POST',
       headers: { Prefer: 'return=representation' },
@@ -243,39 +243,14 @@ const Net = {
   /* ------------------------------------------------------- leaderboard */
   async pullBoard(division) {
     return this.call('/rest/v1/leaderboard?select=*&division=eq.' + division +
-                     '&order=win_pct.desc,wins.desc&limit=10');
+                     '&order=win_pct.desc,wins.desc&limit=' + BOARD_MAX);
   },
-
-  champ: null,          // the current champion of the division on screen
-  tourney: null,        // this week's draw for the division on screen
 
   rpc(fn, body) { return this.call('/rest/v1/rpc/' + fn, { method: 'POST', body: body || {} }); },
   one(rows) { return Array.isArray(rows) ? (rows[0] || null) : (rows || null); },
 
   findCasual(fighterId) { return this.rpc('find_casual', { p_fighter: fighterId }).then(r => this.one(r)); },
   leaveCasual(fighterId) { return this.rpc('leave_casual', { p_fighter: fighterId }); },
-  startBout(boutId) { return this.rpc('start_bout', { p_bout: boutId }).then(r => this.one(r)); },
-  checkIn(t, f, round) {
-    return this.rpc('check_in', { p_tourney: t, p_fighter: f, p_round: round });
-  },
-  settleTournament(t) { return this.rpc('settle_tournament', { p_tourney: t }); },
-  openTournament(div) { return this.rpc('open_tournament', { p_division: div }); },
-
-  async pullTournament(division) {
-    const ts = await this.call('/rest/v1/tournaments?select=*&division=eq.' + division +
-                               '&order=starts_at.desc&limit=1');
-    const t = this.one(ts);
-    if (!t) return null;
-    t.bouts = await this.call('/rest/v1/tourney_bouts?select=*&tourney=eq.' + t.id +
-                              '&order=round.asc,slot.asc');
-    t.checked = await this.call('/rest/v1/tourney_checkin?select=fighter&tourney=eq.' + t.id);
-    return t;
-  },
-
-  async pullChampion(division) {
-    const rows = await this.call('/rest/v1/champions_view?select=*&division=eq.' + division);
-    return rows && rows[0] ? rows[0] : null;
-  },
 
   /* Open rooms, newest first, with the host's man named through the foreign
      key so it is one round trip rather than one per room. */
@@ -306,9 +281,8 @@ const Net = {
     this.boardNext = Date.now() + 30000;
     this.busy = true;
     this.error = '';
-    this.champ = null;
-    Promise.all([this.pullBoard(division), this.pullChampion(division).catch(() => null)])
-      .then(([rows, champ]) => { this.board = rows || []; this.champ = champ; })
+    this.pullBoard(division)
+      .then(rows => { this.board = rows || []; })
       .catch(e => {
         this.error = e.message;
         this.board = null;
