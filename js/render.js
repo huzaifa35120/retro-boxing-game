@@ -439,6 +439,18 @@ function drawBoxer(ctx, b) {
 
 /* -------------------------------------------------------------- fx / ui */
 
+/* The number a punch took off him, drifting up off the spot it landed on.
+   It dims for the last stretch rather than vanishing mid-air. */
+function drawPop(ctx, p) {
+  const x = Math.round(screenX(p.x, p.z));
+  const y = Math.round(screenY(p.z)) - Math.round(p.h);
+  const str = String(p.n);
+  const w = textW(str);
+  const fading = p.life < p.life0 * 0.35;
+  px(ctx, x - (w >> 1) - 1, y - 1, w + 2, 9, '#00000055');
+  text(ctx, str, x - (w >> 1), y, fading ? '#8a8a96' : p.col);
+}
+
 function drawSpark(ctx, s) {
   const x = Math.round(screenX(s.x, s.z)), y = Math.round(screenY(s.z) - s.h);
   const r = Math.round(s.r);
@@ -1295,9 +1307,14 @@ const RULE_PAGES = [
   ]},
   { title: 'THE PUNCHES', lines: [
     'JAB IS QUICK AND LIGHT. CROSS IS SLOW AND',
-    'HEAVY. BOTH HOOKS MATCH THE CROSS.',
+    'HEAVY. HOOKS COME OVER HEAVIER STILL, FOR',
+    'MORE WIND AND LESS REACH THAN THE CROSS.',
     'UPPERCUTS HIT HARDEST BUT REACH LEAST.',
     'BODY SHOTS TAKE THE WIND OUT OF A MAN.',
+    '',
+    'WHAT A PUNCH TOOK OFF HIM POPS UP WHERE',
+    'IT LANDED: GREEN FOR A TOUCH, AMBER FOR A',
+    'REAL ONE, RED FOR SOMETHING THAT HURT.',
     '',
     'EVERY PUNCH COSTS STAMINA TO THROW, AND',
     'THE HEAVIER IT IS THE MORE IT COSTS.',

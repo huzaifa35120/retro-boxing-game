@@ -65,6 +65,13 @@ const STEPIN_COOL = 26;
 const ST_STEPIN = 10;
 
 /* The board runs a hundred deep but only ever draws a page of it. */
+/* Damage numbers off a landed punch: green for a touch, amber for a real
+   one, red for something that hurt. */
+const POP_LIFE = 46;
+const POP_MID = 8;
+const POP_BIG = 24;
+const POP_COLS = ['#48d048', '#f0c020', '#ff4038'];
+
 const BOARD_MAX = 100;
 const BOARD_ROWS = 10;
 
@@ -99,7 +106,7 @@ const TKO_KD = 3;               // knockdowns in one round that end it
    shake : screen shake on a clean hit
 
    The jab is the fastest and lightest. The cross is slow and heavy; both
-   hooks are tuned to match the cross exactly. Uppercuts hit hardest and cost
+   hooks come over heavier than the cross. Uppercuts hit hardest and cost
    the most, but have to be thrown from close range.
 --------------------------------------------------------------------------- */
 
@@ -156,8 +163,8 @@ const POWER_SCALE = 1.25;      // global lift on every punch, all classes
 const PUNCHES = {
   jab:        { hand:'L', kind:'straight', level:'head', wind:2, act:4, rec:5,  reach:29, dmg:3,  sta:4,  sap:2,  stun:8,  knock:1.0, shake:1.8, name:'JAB',     key:'J' },
   cross:      { hand:'R', kind:'straight', level:'head', wind:7, act:6, rec:14, reach:34, dmg:9,  sta:10, sap:5,  stun:18, knock:2.6, shake:4.2, name:'CROSS',   key:'L' },
-  leftHook:   { hand:'L', kind:'hook',     level:'head', wind:7, act:6, rec:14, reach:27, dmg:9,  sta:10, sap:5,  stun:18, knock:2.6, shake:4.2, name:'L HOOK',  key:'U' },
-  rightHook:  { hand:'R', kind:'hook',     level:'head', wind:7, act:6, rec:14, reach:27, dmg:9,  sta:10, sap:5,  stun:18, knock:2.6, shake:4.2, name:'R HOOK',  key:'O' },
+  leftHook:   { hand:'L', kind:'hook',     level:'head', wind:8, act:6, rec:15, reach:27, dmg:11, sta:12, sap:6,  stun:21, knock:3.1, shake:4.8, name:'L HOOK',  key:'U' },
+  rightHook:  { hand:'R', kind:'hook',     level:'head', wind:8, act:6, rec:15, reach:27, dmg:11, sta:12, sap:6,  stun:21, knock:3.1, shake:4.8, name:'R HOOK',  key:'O' },
   leftUpper:  { hand:'L', kind:'upper',    level:'rise', wind:8, act:7, rec:16, reach:18, dmg:12, sta:13, sap:6,  stun:22, knock:2.9, shake:4.8, name:'L UPPER', key:'I+J' },
   rightUpper: { hand:'R', kind:'upper',    level:'rise', wind:8, act:7, rec:16, reach:18, dmg:12, sta:13, sap:6,  stun:22, knock:2.9, shake:4.8, name:'R UPPER', key:'I+L' },
   leftBody:   { hand:'L', kind:'straight', level:'body', wind:3, act:5, rec:7,  reach:28, dmg:4,  sta:6,  sap:9,  stun:10, knock:1.2, shake:2.0, name:'L BODY',  key:'N' },
@@ -170,7 +177,7 @@ for (const k in PUNCHES) {
   const p = PUNCHES[k];
   const t = p.wind + p.act + p.rec;
   p.spd  = t <= 12 ? 5 : t <= 16 ? 4 : t <= 22 ? 3 : t <= 28 ? 2 : 1;
-  p.pwr  = p.dmg <= 3 ? 1 : p.dmg <= 5 ? 2 : p.dmg <= 7 ? 3 : p.dmg <= 9 ? 4 : 5;
+  p.pwr  = p.dmg <= 4 ? 1 : p.dmg <= 6 ? 2 : p.dmg <= 9 ? 3 : p.dmg <= 11 ? 4 : 5;
   p.cost = p.sta <= 4 ? 1 : p.sta <= 6 ? 2 : p.sta <= 9 ? 3 : p.sta <= 11 ? 4 : 5;
 }
 

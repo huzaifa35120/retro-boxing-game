@@ -14,7 +14,7 @@ const game = {
   brain:  new Brain(),
   shake: 0, freeze: 0,
   paused: false, page: 0, sound: true,
-  sparks: [], bits: [],
+  sparks: [], bits: [], pops: [],
   banner: '', bannerT: 0,
   frames: 0,
 
@@ -75,7 +75,7 @@ const game = {
     this.phase = 'fight';
     this.player.reset(); this.bot.reset(); this.brain.reset();
     this.applyWeight();
-    this.sparks.length = 0; this.bits.length = 0;
+    this.sparks.length = 0; this.bits.length = 0; this.pops.length = 0;
     this.shake = 0; this.freeze = 0; this.bannerT = 0;
     Input.flush();
   },
@@ -555,7 +555,7 @@ const game = {
   reset() {
     this.player.reset(); this.bot.reset(); this.brain.reset();
     this.applyWeight();
-    this.sparks.length = 0; this.bits.length = 0;
+    this.sparks.length = 0; this.bits.length = 0; this.pops.length = 0;
     this.shake = 0; this.freeze = 0;
     this.phase = 'fight'; this.round = 1; this.roundT = ROUND_FRAMES;
     this.simFrame = 0;
@@ -673,7 +673,7 @@ const game = {
       b.x = b.homeX; b.z = b.homeZ;
     }
     this.brain.reset();
-    this.sparks.length = 0; this.bits.length = 0;
+    this.sparks.length = 0; this.bits.length = 0; this.pops.length = 0;
     this.say('ROUND ' + this.round);
     Sfx.bell();
   },
@@ -804,6 +804,7 @@ const game = {
     this.freeze = Math.max(this.freeze, heavy ? 6 : 4);
     this.spark(hx, hz, hh, heavy ? 7 : 5, heavy ? 9 : 6);
     this.burst(hx, hz, hh, heavy ? 6 : 3, '#f8f0c0');
+    this.popDamage(hx, hz, hh, pd.dmg * scale);
     def.takeHit(att, pd, result);
     this.say(caught ? pd.name + ' - CAUGHT DUCKING!'
            : result === 'graze' ? pd.name + ' THRU GUARD' : pd.name + '!');
@@ -831,8 +832,19 @@ const game = {
     this.freeze = Math.max(this.freeze, 6);
     this.spark(at.x, at.z, g.h, 7, 9);
     this.burst(at.x, at.z, g.h, 6, '#f8f0c0');
+    this.popDamage(at.x, at.z, g.h, pd.dmg);
     bag.take(Math.cos(att.ang), Math.sin(att.ang), pd.knock * 0.55);
     this.say(pd.name + '!');
+  },
+
+  /* A number off the punch, sized by what it actually took off him. */
+  popDamage(x, z, h, dmg) {
+    if (dmg < 0.5) return;
+    const n = Math.round(dmg);
+    this.pops.push({ x, z, h: h + 4, n,
+      col: POP_COLS[n >= POP_BIG ? 2 : n >= POP_MID ? 1 : 0],
+      life: POP_LIFE, life0: POP_LIFE });
+    if (this.pops.length > 12) this.pops.shift();
   },
 
   spark(x, z, h, r, life) { this.sparks.push({ x, z, h, r, r0: r, life, life0: life }); },
@@ -1000,6 +1012,12 @@ const game = {
       if (p.life <= 0 || p.h < 0) this.bits.splice(i, 1);
     }
 
+    for (let i = this.pops.length - 1; i >= 0; i--) {
+      const p = this.pops[i];
+      p.h += 0.34;                      // floats up off the punch
+      if (--p.life <= 0) this.pops.splice(i, 1);
+    }
+
     this.shake *= 0.8;
     if (this.shake < 0.15) this.shake = 0;
   },
@@ -1026,6 +1044,7 @@ const game = {
     if (Wire.active && this.screen === 'fight') drawYouTag(ctx, this.localBoxer());
     for (const p of this.bits) drawParticle(ctx, p);
     for (const s of this.sparks) drawSpark(ctx, s);
+    for (const p of this.pops) drawPop(ctx, p);
     drawRingFront(ctx);
     ctx.restore();
 
